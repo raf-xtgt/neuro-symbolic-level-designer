@@ -1,9 +1,5 @@
 {
   "mcpServers": {
-    "serverpod": {
-      "command": "serverpod",
-      "args": ["mcp-server", "--server-dir", "z_legend_game/z_legend_game_server"]
-    },
     "dart": {
       "command": "dart",
       "args": ["mcp-server"]

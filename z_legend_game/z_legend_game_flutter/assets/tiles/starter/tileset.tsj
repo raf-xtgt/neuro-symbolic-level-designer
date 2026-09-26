@@ -1,0 +1,977 @@
+{
+  "columns": 32,
+  "image": "tileset.png",
+  "imageheight": 32,
+  "imagewidth": 2048,
+  "margin": 0,
+  "name": "tileset",
+  "spacing": 0,
+  "tilecount": 32,
+  "tiledversion": "1.10.2",
+  "tileheight": 32,
+  "tilewidth": 64,
+  "tiles": [
+    {
+      "id": 0,
+      "properties": [
+        {
+          "name": "catalog_id",
+          "type": "int",
+          "value": 0
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "value": "floor"
+        },
+        {
+          "name": "walkable",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "material",
+          "type": "string",
+          "value": "grass"
+        },
+        {
+          "name": "elevation",
+          "type": "int",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "properties": [
+        {
+          "name": "catalog_id",
+          "type": "int",
+          "value": 1
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "value": "floor"
+        },
+        {
+          "name": "walkable",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "material",
+          "type": "string",
+          "value": "grass"
+        },
+        {
+          "name": "elevation",
+          "type": "int",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "properties": [
+        {
+          "name": "catalog_id",
+          "type": "int",
+          "value": 2
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "value": "floor"
+        },
+        {
+          "name": "walkable",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "material",
+          "type": "string",
+          "value": "grass"
+        },
+        {
+          "name": "elevation",
+          "type": "int",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "properties": [
+        {
+          "name": "catalog_id",
+          "type": "int",
+          "value": 3
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "value": "floor"
+        },
+        {
+          "name": "walkable",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "material",
+          "type": "string",
+          "value": "grass"
+        },
+        {
+          "name": "elevation",
+          "type": "int",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "properties": [
+        {
+          "name": "catalog_id",
+          "type": "int",
+          "value": 4
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "value": "floor"
+        },
+        {
+          "name": "walkable",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "material",
+          "type": "string",
+          "value": "grass"
+        },
+        {
+          "name": "elevation",
+          "type": "int",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "properties": [
+        {
+          "name": "catalog_id",
+          "type": "int",
+          "value": 5
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "value": "floor"
+        },
+        {
+          "name": "walkable",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "material",
+          "type": "string",
+          "value": "grass"
+        },
+        {
+          "name": "elevation",
+          "type": "int",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "properties": [
+        {
+          "name": "catalog_id",
+          "type": "int",
+          "value": 6
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "value": "floor"
+        },
+        {
+          "name": "walkable",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "material",
+          "type": "string",
+          "value": "grass"
+        },
+        {
+          "name": "elevation",
+          "type": "int",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "properties": [
+        {
+          "name": "catalog_id",
+          "type": "int",
+          "value": 7
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "value": "floor"
+        },
+        {
+          "name": "walkable",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "material",
+          "type": "string",
+          "value": "grass"
+        },
+        {
+          "name": "elevation",
+          "type": "int",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "properties": [
+        {
+          "name": "catalog_id",
+          "type": "int",
+          "value": 8
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "value": "floor"
+        },
+        {
+          "name": "walkable",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "material",
+          "type": "string",
+          "value": "grass"
+        },
+        {
+          "name": "elevation",
+          "type": "int",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "properties": [
+        {
+          "name": "catalog_id",
+          "type": "int",
+          "value": 9
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "value": "floor"
+        },
+        {
+          "name": "walkable",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "material",
+          "type": "string",
+          "value": "grass"
+        },
+        {
+          "name": "elevation",
+          "type": "int",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "properties": [
+        {
+          "name": "catalog_id",
+          "type": "int",
+          "value": 10
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "value": "floor"
+        },
+        {
+          "name": "walkable",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "material",
+          "type": "string",
+          "value": "grass"
+        },
+        {
+          "name": "elevation",
+          "type": "int",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "properties": [
+        {
+          "name": "catalog_id",
+          "type": "int",
+          "value": 11
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "value": "floor"
+        },
+        {
+          "name": "walkable",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "material",
+          "type": "string",
+          "value": "grass"
+        },
+        {
+          "name": "elevation",
+          "type": "int",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "properties": [
+        {
+          "name": "catalog_id",
+          "type": "int",
+          "value": 12
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "value": "floor"
+        },
+        {
+          "name": "walkable",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "material",
+          "type": "string",
+          "value": "grass"
+        },
+        {
+          "name": "elevation",
+          "type": "int",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "properties": [
+        {
+          "name": "catalog_id",
+          "type": "int",
+          "value": 13
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "value": "floor"
+        },
+        {
+          "name": "walkable",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "material",
+          "type": "string",
+          "value": "grass"
+        },
+        {
+          "name": "elevation",
+          "type": "int",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "properties": [
+        {
+          "name": "catalog_id",
+          "type": "int",
+          "value": 14
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "value": "floor"
+        },
+        {
+          "name": "walkable",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "material",
+          "type": "string",
+          "value": "grass"
+        },
+        {
+          "name": "elevation",
+          "type": "int",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "properties": [
+        {
+          "name": "catalog_id",
+          "type": "int",
+          "value": 15
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "value": "floor"
+        },
+        {
+          "name": "walkable",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "material",
+          "type": "string",
+          "value": "grass"
+        },
+        {
+          "name": "elevation",
+          "type": "int",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "properties": [
+        {
+          "name": "catalog_id",
+          "type": "int",
+          "value": 16
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "value": "floor"
+        },
+        {
+          "name": "walkable",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "material",
+          "type": "string",
+          "value": "stone"
+        },
+        {
+          "name": "elevation",
+          "type": "int",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "properties": [
+        {
+          "name": "catalog_id",
+          "type": "int",
+          "value": 17
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "value": "floor"
+        },
+        {
+          "name": "walkable",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "material",
+          "type": "string",
+          "value": "stone"
+        },
+        {
+          "name": "elevation",
+          "type": "int",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "properties": [
+        {
+          "name": "catalog_id",
+          "type": "int",
+          "value": 18
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "value": "floor"
+        },
+        {
+          "name": "walkable",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "material",
+          "type": "string",
+          "value": "stone"
+        },
+        {
+          "name": "elevation",
+          "type": "int",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "properties": [
+        {
+          "name": "catalog_id",
+          "type": "int",
+          "value": 19
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "value": "floor"
+        },
+        {
+          "name": "walkable",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "material",
+          "type": "string",
+          "value": "stone"
+        },
+        {
+          "name": "elevation",
+          "type": "int",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "properties": [
+        {
+          "name": "catalog_id",
+          "type": "int",
+          "value": 20
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "value": "floor"
+        },
+        {
+          "name": "walkable",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "material",
+          "type": "string",
+          "value": "stone"
+        },
+        {
+          "name": "elevation",
+          "type": "int",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "properties": [
+        {
+          "name": "catalog_id",
+          "type": "int",
+          "value": 21
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "value": "floor"
+        },
+        {
+          "name": "walkable",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "material",
+          "type": "string",
+          "value": "stone"
+        },
+        {
+          "name": "elevation",
+          "type": "int",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "properties": [
+        {
+          "name": "catalog_id",
+          "type": "int",
+          "value": 22
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "value": "floor"
+        },
+        {
+          "name": "walkable",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "material",
+          "type": "string",
+          "value": "stone"
+        },
+        {
+          "name": "elevation",
+          "type": "int",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "properties": [
+        {
+          "name": "catalog_id",
+          "type": "int",
+          "value": 23
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "value": "floor"
+        },
+        {
+          "name": "walkable",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "material",
+          "type": "string",
+          "value": "stone"
+        },
+        {
+          "name": "elevation",
+          "type": "int",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "properties": [
+        {
+          "name": "catalog_id",
+          "type": "int",
+          "value": 24
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "value": "floor"
+        },
+        {
+          "name": "walkable",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "material",
+          "type": "string",
+          "value": "stone"
+        },
+        {
+          "name": "elevation",
+          "type": "int",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "properties": [
+        {
+          "name": "catalog_id",
+          "type": "int",
+          "value": 25
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "value": "floor"
+        },
+        {
+          "name": "walkable",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "material",
+          "type": "string",
+          "value": "stone"
+        },
+        {
+          "name": "elevation",
+          "type": "int",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": 26,
+      "properties": [
+        {
+          "name": "catalog_id",
+          "type": "int",
+          "value": 26
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "value": "floor"
+        },
+        {
+          "name": "walkable",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "material",
+          "type": "string",
+          "value": "stone"
+        },
+        {
+          "name": "elevation",
+          "type": "int",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": 27,
+      "properties": [
+        {
+          "name": "catalog_id",
+          "type": "int",
+          "value": 27
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "value": "floor"
+        },
+        {
+          "name": "walkable",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "material",
+          "type": "string",
+          "value": "stone"
+        },
+        {
+          "name": "elevation",
+          "type": "int",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": 28,
+      "properties": [
+        {
+          "name": "catalog_id",
+          "type": "int",
+          "value": 28
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "value": "floor"
+        },
+        {
+          "name": "walkable",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "material",
+          "type": "string",
+          "value": "stone"
+        },
+        {
+          "name": "elevation",
+          "type": "int",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": 29,
+      "properties": [
+        {
+          "name": "catalog_id",
+          "type": "int",
+          "value": 29
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "value": "floor"
+        },
+        {
+          "name": "walkable",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "material",
+          "type": "string",
+          "value": "stone"
+        },
+        {
+          "name": "elevation",
+          "type": "int",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": 30,
+      "properties": [
+        {
+          "name": "catalog_id",
+          "type": "int",
+          "value": 30
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "value": "floor"
+        },
+        {
+          "name": "walkable",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "material",
+          "type": "string",
+          "value": "stone"
+        },
+        {
+          "name": "elevation",
+          "type": "int",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": 31,
+      "properties": [
+        {
+          "name": "catalog_id",
+          "type": "int",
+          "value": 31
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "value": "floor"
+        },
+        {
+          "name": "walkable",
+          "type": "bool",
+          "value": true
+        },
+        {
+          "name": "material",
+          "type": "string",
+          "value": "stone"
+        },
+        {
+          "name": "elevation",
+          "type": "int",
+          "value": 0
+        }
+      ]
+    }
+  ],
+  "type": "tileset",
+  "version": "1.10"
+}

@@ -15,5 +15,3 @@ pubspec_overrides.yaml
 .codex/
 .mcp.json
 
-# Serverpod Cloud CLI
-.scloud/

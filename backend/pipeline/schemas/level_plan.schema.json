@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "LevelSpecificationPlan",
+  "type": "object",
+  "required": ["map_properties", "layers", "objects"],
+  "additionalProperties": false,
+  "properties": {
+    "map_properties": {
+      "type": "object",
+      "required": ["width", "height", "tile_width", "tile_height", "orientation"],
+      "additionalProperties": false,
+      "properties": {
+        "width":       { "type": "integer" },
+        "height":      { "type": "integer" },
+        "tile_width":  { "type": "integer" },
+        "tile_height": { "type": "integer" },
+        "orientation": { "type": "string", "enum": ["isometric"] }
+      }
+    },
+    "layers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "elevation", "grid"],
+        "additionalProperties": false,
+        "properties": {
+          "name":      { "type": "string" },
+          "elevation": { "type": "integer" },
+          "grid": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": { "type": "integer" }
+            }
+          }
+        }
+      }
+    },
+    "objects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "type", "col", "row"],
+        "additionalProperties": false,
+        "properties": {
+          "name":       { "type": "string" },
+          "type":       { "type": "string" },
+          "col":        { "type": "integer" },
+          "row":        { "type": "integer" },
+          "properties": { "type": "object" }
+        }
+      }
+    }
+  }
+}

@@ -14,16 +14,6 @@
 **/*.js.map
 **/*.info.json
 
-# ── Serverpod & Database ──────────────────────────────────────────────────────
-# Passwords and sensitive server configurations
-**/config/passwords.yaml
-**/config/*_passwords.yaml
-
-# Embedded / local database runtime data
-**/data/
-**/*.db
-**/*.sqlite
-
 # ── Python (Bob Skills & Tools) ───────────────────────────────────────────────
 **/__pycache__/
 **/*.py[cod]

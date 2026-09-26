@@ -1,15 +1,13 @@
-# z_legend_game_flutter
+# Z Legend — Flutter Web + Flame
 
-A new Flutter project with Serverpod.
+Z Legend is an isometric browser game built with Flutter and Flame. It includes a Level Designer
+screen that communicates with the Python FastAPI backend (`../backend/`) to generate levels, and
+a Flame-powered game screen that loads the generated level bundle at runtime.
 
-## Getting Started
+## Getting started
 
-This project is a starting point for a Flutter application that is using
-Serverpod.
-
-A great starting point for learning Serverpod is our documentation site at:
-[https://docs.serverpod.dev](https://docs.serverpod.dev).
-
-To run the project, first make sure that the server is running, then do:
-
-    flutter run
+```bash
+flutter pub get
+flutter run -d chrome
+flutter test
+```

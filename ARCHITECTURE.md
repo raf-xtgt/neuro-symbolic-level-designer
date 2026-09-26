@@ -443,12 +443,12 @@ The Level Design Planning Pipeline outputs this contract after WFC tile dressing
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["name", "type", "x", "y"],
+        "required": ["name", "type", "col", "row"],
         "properties": {
           "name": { "type": "string" },
           "type": { "type": "string" },
-          "x": { "type": "number" },
-          "y": { "type": "number" },
+          "col": { "type": "integer", "description": "Tile column (grid X)" },
+          "row": { "type": "integer", "description": "Tile row (grid Y)" },
           "properties": { "type": "object" }
         }
       }
@@ -456,6 +456,8 @@ The Level Design Planning Pipeline outputs this contract after WFC tile dressing
   }
 }
 ```
+
+**Object coordinates:** `level_plan.json` stores object positions as tile coordinates (`col`, `row`). Planning agents never do pixel math. The Deterministic Map Compiler converts them to Tiled isometric object coordinates at the tile center: $x = (col + 0.5) \times H_{tile}$, $y = (row + 0.5) \times H_{tile}$. For isometric maps, Tiled and `flame_tiled` measure both object axes in tile-height units.
 
 ---
 

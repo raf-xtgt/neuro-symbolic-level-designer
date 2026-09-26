@@ -7,9 +7,18 @@ As mandated by the **IBM Bob 2.0 Hackathon Guidelines**, this directory contains
 <team_name>_task<number>_<task_description>_summary.png
 ```
 
-## Milestone Session Logs to Capture:
-1. `team_task01_ingestion_pipeline_summary.png` - Setting up and testing the OpenCV & grid slicer skills.
-2. `team_task02_planning_wfc_summary.png` - Generating the neuro-symbolic room graph and WFC solver.
-3. `team_task03_flame_game_core_summary.png` - Building the Flutter/Flame isometric player and level loader.
-4. `team_task04_designer_ui_summary.png` - Implementing the Level Designer screen and "Try Out" integration.
-5. `team_task05_verification_summary.png` - Running `dart analyze` and full end-to-end level testing.
+## Folder Structure
+Each IBM Bob task has its own folder. The folder contains the prompt given to Bob and the session summary screenshot.
+
+```
+<number>_<task_description>/
+  prompt.md
+  <team_name>_task<number>_<task_description>_summary.png
+```
+
+## Task Sessions
+| # | Folder | Task | Status |
+|---|---|---|---|
+| 01 | `01_character_conversion/` | Convert player and zombie spritesheets to the ASSET_SPEC format (directions, scale, anchors). | Done |
+| 02 | `02_execution_pipeline/` | Pipeline 3 first slice: fixtures, tileset compiler, map compiler, tests, preview. | Done |
+| 03 | `03_remove_serverpod/` | Remove Serverpod from the Flutter app and tooling (Log-8 decision). | Done |
