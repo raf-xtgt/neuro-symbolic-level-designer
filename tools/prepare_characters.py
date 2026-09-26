@@ -3,8 +3,17 @@
 prepare_characters.py
 Converts raw character assets from zip files into game-ready spritesheets.
 
-Usage:
-    python prepare_characters.py --input-dir game-assets --output-dir neuro-symbolic-level-designer/z_legend_game/z_legend_game_flutter/assets/images/characters
+Usage (from any working directory):
+    uv run --with pillow python tools/prepare_characters.py
+
+    # or with explicit paths:
+    uv run --with pillow python tools/prepare_characters.py \\
+        --input-dir /path/to/game-assets \\
+        --output-dir /path/to/characters
+
+Defaults resolve from the repository root (the directory containing tools/),
+so the script works regardless of the current working directory.
+Relative paths passed on the command line resolve from the current working directory.
 
 See ASSET_SPEC.md §4 for output format.
 """
@@ -483,18 +492,33 @@ def print_summary(summary: list):
 # ---------------------------------------------------------------------------
 
 def main():
+    # Repository root = the directory containing tools/ = parent of this script's directory.
+    _repo_root = Path(__file__).resolve().parent.parent
+
     parser = argparse.ArgumentParser(description="Convert raw character assets to game-ready spritesheets.")
-    parser.add_argument("--input-dir", default="game-assets",
-                        help="Directory containing the source zip files (default: game-assets)")
-    parser.add_argument("--output-dir",
-                        default="neuro-symbolic-level-designer/z_legend_game/z_legend_game_flutter/assets/images/characters",
-                        help="Output directory for processed spritesheets")
+    parser.add_argument(
+        "--input-dir",
+        default=None,
+        help="Directory containing the source zip files "
+             "(default: <repo_root>/game-assets)",
+    )
+    parser.add_argument(
+        "--output-dir",
+        default=None,
+        help="Output directory for processed spritesheets "
+             "(default: <repo_root>/z_legend_game/z_legend_game_flutter/assets/images/characters)",
+    )
     parser.add_argument("--zombie-frame-size", type=int, default=128,
                         help="Output frame size in pixels for zombie sprites (default: 128)")
     args = parser.parse_args()
 
-    input_dir = Path(args.input_dir)
-    output_dir = Path(args.output_dir)
+    # Use repo-root-relative defaults; honour explicit CLI paths relative to cwd.
+    input_dir = Path(args.input_dir) if args.input_dir is not None else _repo_root / "game-assets"
+    output_dir = (
+        Path(args.output_dir)
+        if args.output_dir is not None
+        else _repo_root / "z_legend_game" / "z_legend_game_flutter" / "assets" / "images" / "characters"
+    )
     frame_size = args.zombie_frame_size
 
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -503,6 +527,19 @@ def main():
     print(f"Output: {output_dir}")
     print(f"Zombie frame size: {frame_size}x{frame_size}")
     print()
+
+    # Early check: death_city.zip is git-ignored (license).  Give the user a
+    # clear message rather than a cryptic FileNotFoundError later.
+    death_city_zip = input_dir / "death_city.zip"
+    if not death_city_zip.exists():
+        print(
+            f"ERROR: {death_city_zip} not found.\n"
+            "This file is git-ignored (license: no redistribution).\n"
+            "Download it from https://gamegland.itch.io/zombie-apocalypse-character-spritesheet"
+            f" and place it in {input_dir}/.",
+            file=__import__("sys").stderr,
+        )
+        raise SystemExit(1)
 
     summary = []
 

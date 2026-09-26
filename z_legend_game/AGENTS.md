@@ -1,7 +1,7 @@
 # Z Legend Game: Flutter Web + Flame Isometric Game
 
 This folder holds the browser game and the Level Designer UI for the neuro-symbolic level designer.
-Read `../ARCHITECTURE.md` for the level generation system and `../../game-assets/ASSET_SPEC.md` for the asset format.
+Read `../ARCHITECTURE.md` for the level generation system and `../game-assets/ASSET_SPEC.md` for the asset format.
 
 ## Architecture (decision: `../../BUILD_LOG.md` Log-8)
 

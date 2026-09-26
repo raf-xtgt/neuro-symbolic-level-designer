@@ -40,8 +40,9 @@ def compile_tileset(
     catalog : dict
         Parsed asset_catalog.json contents.
     source_image_path : str
-        Absolute or relative path to the source atlas image
-        (e.g. ``game-assets/grassland_tiles.png``).
+        Absolute path to the source atlas image, as resolved by
+        ``compile._resolve_source_image``.  ``source`` values in the catalog
+        are relative to the repository root (``neuro-symbolic-level-designer/``).
     out_dir : str
         Directory where tileset.png and tileset.tsj are written.
     tileset_image_name : str

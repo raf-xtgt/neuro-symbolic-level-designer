@@ -260,3 +260,25 @@ def test_output_files_exist():
     assert TSJ_PATH.exists(),    f"Missing: {TSJ_PATH}"
     assert TILESET_PNG.exists(), f"Missing: {TILESET_PNG}"
     assert PREVIEW_PNG.exists(), f"Missing: {PREVIEW_PNG}"
+
+
+# ---------------------------------------------------------------------------
+# Test 7: every tile source in the fixture catalog resolves to an existing file
+# ---------------------------------------------------------------------------
+
+def test_catalog_source_paths_exist(catalog):
+    """
+    Each tile's ``source`` is relative to the repository root
+    (``neuro-symbolic-level-designer/``).  Verify every referenced file exists.
+    """
+    repo_root = BACKEND_DIR.parent  # backend/ -> repo root
+    seen: set[str] = set()
+    for tile in catalog["tiles"]:
+        src = tile["source"]
+        if src in seen:
+            continue
+        seen.add(src)
+        resolved = (repo_root / src) if not Path(src).is_absolute() else Path(src)
+        assert resolved.exists(), (
+            f"Tile source '{src}' does not exist at resolved path: {resolved}"
+        )

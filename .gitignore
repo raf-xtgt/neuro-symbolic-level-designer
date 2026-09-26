@@ -52,3 +52,8 @@ ehthumbs.db
 **/logs/
 **/scratch/
 **/tmp/
+
+# ── Licensed raw assets (no redistribution) ───────────────────────────────────
+# Game Gland license forbids redistributing the raw files. Keep the zip local.
+# The processed sheets in z_legend_game_flutter/assets/images/characters/ are committed.
+game-assets/death_city.zip

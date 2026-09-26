@@ -30,6 +30,10 @@ from pipeline.execution.map_compiler import compile_map
 from pipeline.execution.preview_renderer import render_preview
 
 
+# compile.py is at backend/pipeline/execution/compile.py → 4 levels up is repo root.
+_REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+
+
 # -------------------------------------------------------------------------
 # Helpers
 # -------------------------------------------------------------------------
@@ -49,28 +53,21 @@ def _validate(instance: dict, schema_name: str) -> None:
     jsonschema.validate(instance=instance, schema=schema)
 
 
-def _resolve_source_image(catalog: dict, base_dir: str) -> str:
+def _resolve_source_image(catalog: dict) -> str:
     """
     Resolve the source image path from the first tile's ``source`` field.
-    Tries the path as-is, then relative to base_dir, then relative to the
-    workspace root (two levels above base_dir).
+    ``source`` values are relative to the repository root
+    (``neuro-symbolic-level-designer/``).  Absolute paths are used as-is.
     """
     first_source = catalog["tiles"][0]["source"]
-    candidates = [
-        first_source,
-        os.path.join(base_dir, first_source),
-        os.path.join(base_dir, "..", first_source),
-        os.path.join(base_dir, "..", "..", first_source),
-        os.path.join(base_dir, "..", "..", "..", first_source),
-        os.path.join(base_dir, "..", "..", "..", "..", first_source),
-    ]
-    for c in candidates:
-        if os.path.isfile(c):
-            return os.path.abspath(c)
-    raise FileNotFoundError(
-        f"Cannot find source image '{first_source}'. Tried:\n"
-        + "\n".join(f"  {c}" for c in candidates)
-    )
+    p = Path(first_source)
+    resolved = p if p.is_absolute() else _REPO_ROOT / p
+    if not resolved.exists():
+        raise FileNotFoundError(
+            f"Cannot find source image '{first_source}'. "
+            f"Resolved to: {resolved}"
+        )
+    return str(resolved)
 
 
 # -------------------------------------------------------------------------
@@ -94,8 +91,7 @@ def run_compile(plan_path: str, catalog_path: str, out_dir: str) -> dict:
     print("OK")
 
     # Resolve source atlas
-    base_dir = os.path.dirname(os.path.abspath(catalog_path))
-    source_image = _resolve_source_image(catalog, base_dir)
+    source_image = _resolve_source_image(catalog)
     print(f"Source atlas: {source_image}")
 
     # 1. Tileset
