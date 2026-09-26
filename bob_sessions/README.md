@@ -23,3 +23,5 @@ Each IBM Bob task has its own folder. The folder contains the prompt given to Bo
 | 02 | `02_execution_pipeline/` | Pipeline 3 first slice: fixtures, tileset compiler, map compiler, tests, preview. | Done |
 | 03 | `03_remove_serverpod/` | Remove Serverpod from the Flutter app and tooling (Log-8 decision). | Done |
 | 04 | `04_asset_paths/` | Resolve asset paths from the repository root after moving `game-assets/` into the repo. | Done |
+| 05 | `05_flame_game/` | Task B: playable Flame game on the starter level (level loader, isometric math, player, zombies, exit). | Done (Prompts 1-2: IBM Bob; Prompt 3: Claude Code, Bob out of credits). Browser check passed. |
+| 06 | `06_fastapi_backend/` | FastAPI backend: input contract validation, asset packs, job stages, bundle serving. | Done (Claude Code, Bob out of credits) |

@@ -12,6 +12,27 @@ The system converts input assets and design prompts into game-ready map files an
 * Prevent low-quality output through rigorous data validation.
 * Output valid Tiled map files, tileset files, and Dart integration code for the Flame engine.
 
+### 1.2 Input Contract
+
+| Input | Required | Format | Use |
+|---|---|---|---|
+| Design prompt | **Yes** | Text, 1 to 2000 characters | Drives Pipeline 2 (topology, style, entity placement). |
+| Spritesheets | **Yes** (at least 1) | PNG, RGBA | Source of terrain tiles and props (Pipeline 1). |
+| Existing tilesets | No | `.tsx` / `.tsj` | Pre-defined tile identifiers and properties. Bypasses visual guessing. |
+| Existing maps | No | `.tmx` / `.tmj` | Existing layouts and tile usage from an existing game. |
+
+* **Spritesheet source:** the request supplies the spritesheet in one of two ways:
+  1. **Upload:** one or more PNG files. They go through Pipeline 1 (Data Ingestion).
+  2. **Built-in asset pack:** the request names a pack that ships with the backend (for example `grassland_starter`). A pack contains its spritesheets and a pre-built `asset_catalog.json` (the cached result of Pipeline 1 for those spritesheets). Pipeline 1 is skipped.
+* A request with no uploaded spritesheet and no asset pack is rejected. A prompt alone is never enough.
+* Until Pipeline 1 is implemented, uploaded spritesheets are validated and stored, and the job stops at the ingestion stage with the error code `ingestion_not_implemented`.
+
+### 1.3 Scope of Input Spritesheets
+
+* Input spritesheets supply **terrain tiles and static props** (floors, walls, cliffs, trees, buildings, decorations).
+* **Playable characters and enemies are game assets, not level inputs.** The game ships a character library (player and enemy sheets with sidecar JSON, see `game-assets/ASSET_SPEC.md` section 4). The level only places entity markers (`PlayerSpawn`, `Zombie`, `ExitTrigger`, ...) in the `Entities` object layer. The game maps each entity `type` to a component from its character library.
+* The Entity and Prop Extractor Agent (section 3.2.4) therefore classifies interactive props (chests, doors, levers) and flags character-like sprites so the harmonizer can exclude them from the terrain catalog.
+
 ---
 
 ## 2. System Architecture Overview
@@ -24,7 +45,7 @@ The system operates on a **neuro-symbolic design philosophy ("Agents Plan, Algor
 ```mermaid
 flowchart TD
     subgraph Inputs ["1. Input Layer"]
-        A1["Spritesheets (.png) [Mandatory]"]
+        A1["Spritesheets (.png) or Built-in Asset Pack [Mandatory]"]
         A2["Existing Tilesets (.tsx/.tsj) [Optional]"]
         A3["Existing Maps (.tmx/.tmj) [Optional]"]
         A4["User Design Prompt [Mandatory]"]
@@ -150,7 +171,7 @@ Four specialized agents analyze the sliced graphics in parallel. To eliminate pr
 * **Input:** Unclassified sprites and non-grid graphics.
 * **Function:**
   * Detects interactive objects (chests, doors, levers).
-  * Identifies character and enemy sprites.
+  * Flags character and enemy sprites. These are excluded from the terrain catalog (see section 1.3); the game provides playable characters.
   * Marks item spawn points and interaction trigger areas.
 
 ### 3.3 Asset Harmonizer (Code-First with LLM Fallback)
@@ -255,18 +276,19 @@ flowchart LR
 
 ### 5.1 Deterministic Map Compiler
 * Converts the layout plan into standard Tiled JSON (`.tmj`) or XML (`.tmx`).
+* **Embeds the tileset inline** in the map (all tileset fields plus `firstgid`, no `source` reference). This is the default. Reason: the Flame loader parses the JSON map directly and cannot resolve external tilesets (see section 7). An embedded tileset also reduces the number of HTTP requests when the game loads a level from the backend.
 * Sets map orientation to `isometric`.
 * Encodes tile layers using standard uncompressed or base64 arrays.
 * Writes object layers containing spawn coordinates, collision rectangles, and trigger zones.
 
 ### 5.2 Deterministic Tileset Compiler
-* Generates the Tiled Tileset file (`.tsj` or `.tsx`).
+* Generates the Tiled Tileset file (`.tsj` or `.tsx`) and the packed tileset image (`tileset.png`). The standalone tileset file is kept for reuse and inspection; the game uses the copy embedded in the map.
 * Embeds tile width, tile height, margins, and spacing.
 * Embeds isometric tile offset values for tall wall sprites.
 * Embeds collision polygon shapes directly into the tile definitions.
 
 ### 5.3 Template-Assisted Flame Code Generator Agent
-* Uses **Jinja2 templating** for boilerplate architecture (`PositionComponent`, `HasGameReference`, `TiledComponent.load`, and generic hitbox loops).
+* Uses **Jinja2 templating** for boilerplate architecture (`PositionComponent`, `HasGameReference`, the JSON level loading pattern in section 7, and generic hitbox loops).
 * The LLM agent is focused strictly on synthesizing custom game mechanics and typed component callbacks:
   * Generates typed entity factories to spawn components from map object layers:
     * Spawns player entity with initial position and controller bindings.
@@ -463,70 +485,63 @@ The Level Design Planning Pipeline outputs this contract after WFC tile dressing
 
 ## 7. Flame Engine Integration Pattern
 
-The generated Dart code uses the `Flame` component model and `flame_tiled`.
+The game uses `flame` + `flame_tiled` 3.1.2 (with `tiled` 0.11.1).
+
+**Library constraints (verified in the library source, BUILD_LOG.md Log-16 and Log-17):**
+* `TiledComponent.load` parses every map file as XML (TMX). It cannot load `.tmj`.
+* The JSON parser in `tiled` 0.11.1 (`TileMapParser.parseJson`) reads TMX element names as JSON keys (`tileset`, `object`, image as a list of objects) and cannot resolve external tilesets. A standard `.tmj` parses with no tilesets and empty object layers, with no error.
+
+**Loading pattern (implemented in `z_legend_game_flutter/lib/game/level/`):**
 
 ```dart
-// Generated Flame Level Loader Component
-import 'package:flame/components.dart';
-import 'package:flame_tiled/flame_tiled.dart';
+/// Where a level bundle comes from: bundled assets or the backend URL ("Try Out").
+class LevelSource {
+  final AssetBundle bundle; // rootBundle, or NetworkAssetBundle(baseUrl)
+  final String prefix;      // 'assets/tiles/starter/' or '' for network
+}
 
-class GeneratedLevelLoader extends PositionComponent with HasGameReference {
-  final String mapPath;
-  late TiledComponent tiledMap;
-
-  GeneratedLevelLoader({required this.mapPath});
-
-  @override
-  Future<void> onLoad() async {
-    super.onLoad();
-
-    // 1. Load the isometric map
-    tiledMap = await TiledComponent.load(
-      mapPath,
-      Vector2(64, 32),
-    );
-    await add(tiledMap);
-
-    // 2. Extract and spawn entities from the object group
-    final objectGroup = tiledMap.tileMap.getLayer<ObjectGroup>('Entities');
-    if (objectGroup != null) {
-      for (final obj in objectGroup.objects) {
-        _spawnObject(obj);
-      }
-    }
-
-    // 3. Extract and configure collision boundaries
-    final collisionGroup = tiledMap.tileMap.getLayer<ObjectGroup>('Collisions');
-    if (collisionGroup != null) {
-      for (final hitBox in collisionGroup.objects) {
-        _createCollisionBox(hitBox);
-      }
-    }
-  }
-
-  void _spawnObject(TiledObject obj) {
-    switch (obj.type) {
-      case 'PlayerSpawn':
-        // Spawn Player component at isometric coordinates
-        break;
-      case 'Enemy':
-        // Spawn Enemy component
-        break;
-      case 'Trigger':
-        // Spawn Area Trigger component
-        break;
-    }
-  }
-
-  void _createCollisionBox(TiledObject box) {
-    // Attach hitbox component to level coordinate
-  }
+Future<TiledComponent> loadLevel(LevelSource source) async {
+  final contents = await source.bundle.loadString('${source.prefix}level.tmj');
+  // Rename standard TMJ keys to the keys tiled 0.11.1 reads.
+  final map = TileMapParser.parseJson(normalizeForTiled(contents));
+  final renderable = await RenderableTiledMap.fromTiledMap(
+    map,
+    Vector2(map.tileWidth.toDouble(), map.tileHeight.toDouble()),
+    images: Images(prefix: source.prefix, bundle: source.bundle),
+    bundle: source.bundle,
+  );
+  return TiledComponent(renderable);
 }
 ```
 
+* The same code loads the bundled starter level and a generated level from the backend. Only the `LevelSource` changes.
+* All files in a level bundle are in one flat folder (`level.tmj`, `tileset.png`), so relative image paths resolve for both sources.
+* Entities: the game reads the `Entities` object layer, converts each object from Tiled isometric coordinates to a grid tile (section 6.3), and spawns the matching component by `type`.
+* All isometric math is in one class (`IsoMath`), built from the loaded map size and tile size.
+
 ---
 
-## 8. Summary of Technical Advantages
+## 8. Backend API (FastAPI)
+
+The backend (`backend/`, Python + FastAPI) runs the three pipelines as a job and serves the output bundle to the Flutter web app. Default URL: `http://localhost:8000`.
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/health` | Liveness check. |
+| `GET` | `/api/asset-packs` | List built-in asset packs (id, name, description, spritesheet names, tile size). |
+| `POST` | `/api/levels` | Start a generation job. `multipart/form-data`, input contract in section 1.2. Returns `202` with `job_id`. |
+| `GET` | `/api/levels/{job_id}` | Job status: stage (`queued`, `ingesting`, `planning`, `executing`, `done`, `failed`), per-stage status, error code and message, summary. |
+| `GET` | `/api/levels/{job_id}/bundle/{file}` | Download one bundle file: `level.tmj`, `tileset.tsj`, `tileset.png`, `preview_level.png`. |
+
+**`POST /api/levels` fields:**
+* `prompt` (text, required).
+* `spritesheets` (PNG files, 0 to 10) and/or `asset_pack` (pack id). At least one spritesheet source is required.
+* `tilesets` (`.tsx` / `.tsj`, optional, 0 to 10), `maps` (`.tmx` / `.tmj`, optional, 0 to 5).
+* Invalid input returns `422` with a list of field errors. Files are checked by content (PNG signature, parseable XML or JSON), not only by extension.
+
+**"Try Out":** the game creates `LevelSource.network(Uri.parse('http://localhost:8000/api/levels/{job_id}/bundle/'))` and loads `level.tmj` from it (section 7).
+
+## 9. Summary of Technical Advantages
 
 1. **Neuro-Symbolic Efficiency ("Agents Plan, Algorithms Fill"):** Eliminates prompt bloat and hallucinated numerical arrays by letting agents reason over semantic room graphs, while deterministic solvers (WFC, A\*, BSP) handle micro-tile indexing.
 2. **Grammar-Constrained Decoding:** All VLM and LLM agent interactions run under strict Pydantic schemas (via Instructor / Outlines), mathematically guaranteeing schema conformity and eliminating parsing retries.

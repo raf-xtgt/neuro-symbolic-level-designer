@@ -1,30 +1,20 @@
 import 'package:flutter/material.dart';
 
+import 'screens/start_screen.dart';
+
 void main() {
-  runApp(const MyApp());
+  runApp(const ZLegendApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class ZLegendApp extends StatelessWidget {
+  const ZLegendApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
       title: 'Z Legend',
-      home: PlaceholderScreen(),
-    );
-  }
-}
-
-class PlaceholderScreen extends StatelessWidget {
-  const PlaceholderScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: Text('Z Legend: Level Designer coming soon'),
-      ),
+      theme: ThemeData.dark(),
+      home: const StartScreen(),
     );
   }
 }

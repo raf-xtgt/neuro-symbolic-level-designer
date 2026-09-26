@@ -1,0 +1,8 @@
+{
+  "id": "grassland_starter",
+  "name": "Grassland Starter",
+  "description": "32 isometric floor tiles: 16 grass variants and 16 stone path variants.",
+  "spritesheets": ["game-assets/grassland_tiles.png"],
+  "catalog": "fixtures/starter/asset_catalog.json",
+  "tile_size": {"width": 64, "height": 32}
+}

@@ -77,9 +77,15 @@ def tsj() -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 def _valid_gids(tmj: dict, tsj: dict) -> set[int]:
-    """Return the set of all valid non-zero GIDs for this tileset."""
-    firstgid: int = tmj["tilesets"][0]["firstgid"]
-    tilecount: int = tsj["tilecount"]
+    """Return the set of all valid non-zero GIDs for this tileset.
+
+    Works whether the tileset is embedded in the .tmj (no ``source`` key)
+    or referenced externally (``source`` key present, uses tsj).
+    """
+    ts_entry = tmj["tilesets"][0]
+    firstgid: int = ts_entry["firstgid"]
+    # Embedded tileset has tilecount directly; external uses the tsj fixture.
+    tilecount: int = ts_entry.get("tilecount", tsj["tilecount"])
     return set(range(firstgid, firstgid + tilecount))
 
 
@@ -166,7 +172,8 @@ def test_objects_on_walkable_tiles(tmj, tsj, catalog):
 # ---------------------------------------------------------------------------
 
 def test_round_trip(tmj, tsj, level_plan, catalog):
-    firstgid = tmj["tilesets"][0]["firstgid"]
+    ts_entry = tmj["tilesets"][0]
+    firstgid = ts_entry["firstgid"]
 
     # Rebuild catalog_id lookup from packed index
     catalog_tiles = sorted(catalog["tiles"], key=lambda t: t["id"])

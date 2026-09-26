@@ -7,10 +7,15 @@ Tiled JSON map format (orientation=isometric, renderorder=right-down).
 Tile data is stored as uncompressed CSV integers (Tiled "csv" encoding).
 GID = firstgid + packed_index_in_tileset.
 
+The tileset is **embedded inline** in level.tmj by default so that
+flame_tiled can load it without a separate file-system lookup.
+The standalone tileset.tsj and tileset.png are still written by the
+tileset_compiler (ARCHITECTURE.md 5.2) and are kept for tooling use.
+
 Public API:
     compile_map(level_plan, catalog, tileset_tsj, out_dir,
                 firstgid=1,
-                tileset_json_name="tileset.tsj",
+                tileset_image_name="tileset.png",
                 map_json_name="level.tmj") -> dict
 """
 from __future__ import annotations
@@ -27,11 +32,17 @@ def compile_map(
     tileset_tsj: dict[str, Any],
     out_dir: str,
     firstgid: int = 1,
-    tileset_json_name: str = "tileset.tsj",
+    tileset_image_name: str = "tileset.png",
     map_json_name: str = "level.tmj",
+    # Legacy parameter kept for callers that still pass it; ignored.
+    tileset_json_name: str = "tileset.tsj",
 ) -> dict[str, Any]:
     """
     Compile a level_plan + catalog into a Tiled .tmj file.
+
+    The tileset is embedded inline (all fields from tileset_tsj plus
+    ``firstgid``).  The ``image`` path is set to ``tileset_image_name``
+    so that it resolves relative to the .tmj directory.
 
     Parameters
     ----------
@@ -45,10 +56,13 @@ def compile_map(
         Directory where level.tmj is written.
     firstgid : int
         GID offset for this tileset (default 1, Tiled convention).
-    tileset_json_name : str
-        Filename of the .tsj (used for the relative path inside .tmj).
+    tileset_image_name : str
+        Filename of the tileset PNG relative to the .tmj (default
+        ``tileset.png``).
     map_json_name : str
         Filename for the output map file (default ``level.tmj``).
+    tileset_json_name : str
+        Ignored – kept for backwards compatibility with callers.
 
     Returns
     -------
@@ -152,7 +166,19 @@ def compile_map(
     tiled_layers.append(entities_layer)
 
     # -----------------------------------------------------------------
-    # 3. Build the .tmj document
+    # 3. Build the embedded tileset entry.
+    #    Copy all fields from tileset_tsj and override "image" to the
+    #    local filename, then add "firstgid".
+    # -----------------------------------------------------------------
+    embedded_tileset: dict[str, Any] = {
+        k: v for k, v in tileset_tsj.items()
+        if k not in ("type", "version", "tiledversion")
+    }
+    embedded_tileset["firstgid"] = firstgid
+    embedded_tileset["image"]    = tileset_image_name
+
+    # -----------------------------------------------------------------
+    # 4. Build the .tmj document
     # -----------------------------------------------------------------
     tmj: dict[str, Any] = {
         "compressionlevel": -1,
@@ -165,12 +191,7 @@ def compile_map(
         "renderorder":      "right-down",
         "tiledversion":     "1.10.2",
         "tileheight":       th,
-        "tilesets": [
-            {
-                "firstgid": firstgid,
-                "source":   tileset_json_name,
-            }
-        ],
+        "tilesets":         [embedded_tileset],
         "tilewidth":        tw,
         "type":             "map",
         "version":          "1.10",
