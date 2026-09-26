@@ -1,0 +1,11 @@
+name: _
+publish_to: none
+
+environment:
+  sdk: '^3.12.2'
+
+workspace:
+  - z_legend_game_client
+  - z_legend_game_server
+  - z_legend_game_flutter
+
