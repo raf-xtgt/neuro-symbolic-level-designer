@@ -1,0 +1,20 @@
+{
+  "frame_width": 64,
+  "frame_height": 64,
+  "directions": [
+    "S",
+    "SW",
+    "W",
+    "NW",
+    "N",
+    "NE",
+    "E",
+    "SE"
+  ],
+  "frames": 4,
+  "fps": 10,
+  "anchor": {
+    "x": 32,
+    "y": 63
+  }
+}
