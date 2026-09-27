@@ -5,64 +5,53 @@ Reads level_plan.json + asset_catalog.json and produces level.tmj.
 
 Tiled JSON map format (orientation=isometric, renderorder=right-down).
 Tile data is stored as uncompressed CSV integers (Tiled "csv" encoding).
-GID = firstgid + packed_index_in_tileset.
+GID = firstgid of the tile's tileset + its local index in that tileset.
+Tilesets get consecutive ``firstgid`` values starting at 1.
 
-The tileset is **embedded inline** in level.tmj by default so that
-flame_tiled can load it without a separate file-system lookup.
-The standalone tileset.tsj and tileset.png are still written by the
-tileset_compiler (ARCHITECTURE.md 5.2) and are kept for tooling use.
+Plan grids hold catalog ids. The first layer (Ground) fills every cell; in
+the layers after it (for example Objects) the value 0 means an empty cell
+(GID 0). Catalog id 0 is a floor tile, which never appears in those layers.
+
+All tilesets are **embedded inline** in level.tmj so that flame_tiled can
+load them without a separate file-system lookup. The standalone .tsj and
+.png files are still written by the tileset_compiler (ARCHITECTURE.md 5.2)
+and are kept for tooling use.
 
 Public API:
-    compile_map(level_plan, catalog, tileset_tsj, out_dir,
-                firstgid=1,
-                tileset_image_name="tileset.png",
-                map_json_name="level.tmj") -> dict
+    compile_map(level_plan, tilesets, out_dir, map_json_name="level.tmj") -> dict
 """
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 from typing import Any
+
+from pipeline.execution.tileset_compiler import CompiledTileset
 
 
 def compile_map(
     level_plan: dict[str, Any],
-    catalog: dict[str, Any],
-    tileset_tsj: dict[str, Any],
+    tilesets: list[CompiledTileset],
     out_dir: str,
-    firstgid: int = 1,
-    tileset_image_name: str = "tileset.png",
     map_json_name: str = "level.tmj",
-    # Legacy parameter kept for callers that still pass it; ignored.
-    tileset_json_name: str = "tileset.tsj",
 ) -> dict[str, Any]:
     """
-    Compile a level_plan + catalog into a Tiled .tmj file.
+    Compile a level_plan + compiled tilesets into a Tiled .tmj file.
 
-    The tileset is embedded inline (all fields from tileset_tsj plus
-    ``firstgid``).  The ``image`` path is set to ``tileset_image_name``
-    so that it resolves relative to the .tmj directory.
+    Each tileset is embedded inline (all fields from its .tsj plus
+    ``firstgid``), with ``image`` set to its file name so that it resolves
+    relative to the .tmj directory.
 
     Parameters
     ----------
     level_plan : dict
         Parsed level_plan.json.
-    catalog : dict
-        Parsed asset_catalog.json.
-    tileset_tsj : dict
-        Parsed tileset.tsj (output of tileset_compiler).
+    tilesets : list[CompiledTileset]
+        Output of ``tileset_compiler.compile_tilesets``, in tileset order.
     out_dir : str
         Directory where level.tmj is written.
-    firstgid : int
-        GID offset for this tileset (default 1, Tiled convention).
-    tileset_image_name : str
-        Filename of the tileset PNG relative to the .tmj (default
-        ``tileset.png``).
     map_json_name : str
         Filename for the output map file (default ``level.tmj``).
-    tileset_json_name : str
-        Ignored – kept for backwards compatibility with callers.
 
     Returns
     -------
@@ -75,12 +64,15 @@ def compile_map(
     tw: int     = props["tile_width"]
     th: int     = props["tile_height"]
 
-    # Build lookup: catalog_id -> packed_index (0-based position in tileset atlas)
-    catalog_tiles = sorted(catalog["tiles"], key=lambda t: t["id"])
-    catalog_id_to_packed = {tile["id"]: idx for idx, tile in enumerate(catalog_tiles)}
-
-    # Build lookup: packed_index -> walkable
-    packed_walkable = {idx: tile["walkable"] for idx, tile in enumerate(catalog_tiles)}
+    # catalog_id -> GID, with consecutive firstgid values per tileset.
+    firstgids: list[int] = []
+    catalog_id_to_gid: dict[int, int] = {}
+    next_gid = 1
+    for ts in tilesets:
+        firstgids.append(next_gid)
+        for local_id, catalog_id in enumerate(ts.catalog_ids):
+            catalog_id_to_gid[catalog_id] = next_gid + local_id
+        next_gid += ts.tilecount
 
     # -----------------------------------------------------------------
     # 1. Tile layers → Tiled layer objects
@@ -88,13 +80,15 @@ def compile_map(
     tiled_layers: list[dict[str, Any]] = []
     layer_id_counter = 1
 
-    for layer in level_plan["layers"]:
-        grid = layer["grid"]
+    for layer_index, layer in enumerate(level_plan["layers"]):
+        overlay = layer_index > 0
         flat_data: list[int] = []
-        for row in grid:
+        for row in layer["grid"]:
             for catalog_id in row:
-                packed = catalog_id_to_packed[catalog_id]
-                flat_data.append(firstgid + packed)
+                if overlay and catalog_id == 0:
+                    flat_data.append(0)
+                else:
+                    flat_data.append(catalog_id_to_gid[catalog_id])
 
         tiled_layer: dict[str, Any] = {
             "data":       flat_data,
@@ -166,16 +160,19 @@ def compile_map(
     tiled_layers.append(entities_layer)
 
     # -----------------------------------------------------------------
-    # 3. Build the embedded tileset entry.
-    #    Copy all fields from tileset_tsj and override "image" to the
+    # 3. Build the embedded tileset entries.
+    #    Copy all fields from each .tsj and override "image" to the
     #    local filename, then add "firstgid".
     # -----------------------------------------------------------------
-    embedded_tileset: dict[str, Any] = {
-        k: v for k, v in tileset_tsj.items()
-        if k not in ("type", "version", "tiledversion")
-    }
-    embedded_tileset["firstgid"] = firstgid
-    embedded_tileset["image"]    = tileset_image_name
+    embedded_tilesets: list[dict[str, Any]] = []
+    for ts, firstgid in zip(tilesets, firstgids):
+        embedded: dict[str, Any] = {
+            k: v for k, v in ts.tsj.items()
+            if k not in ("type", "version", "tiledversion")
+        }
+        embedded["firstgid"] = firstgid
+        embedded["image"]    = ts.image_name
+        embedded_tilesets.append(embedded)
 
     # -----------------------------------------------------------------
     # 4. Build the .tmj document
@@ -191,7 +188,7 @@ def compile_map(
         "renderorder":      "right-down",
         "tiledversion":     "1.10.2",
         "tileheight":       th,
-        "tilesets":         [embedded_tileset],
+        "tilesets":         embedded_tilesets,
         "tilewidth":        tw,
         "type":             "map",
         "version":          "1.10",

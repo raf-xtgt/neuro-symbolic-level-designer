@@ -152,6 +152,13 @@ class ZLegendGame extends FlameGame
     KeyEvent event,
     Set<LogicalKeyboardKey> keysPressed,
   ) {
+    // Esc belongs to the screen (it leaves the game). Components return
+    // false from onKeyEvent, which Flame reports as handled, so let Esc
+    // bubble up before they see it.
+    if (event.logicalKey == LogicalKeyboardKey.escape) {
+      return KeyEventResult.ignored;
+    }
+
     // F1 toggles debug overlay – handled here, not forwarded.
     if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.f1) {
       _debugOverlay = !_debugOverlay;

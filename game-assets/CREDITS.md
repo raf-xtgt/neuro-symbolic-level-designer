@@ -5,6 +5,7 @@ All third-party assets used in this project, their sources, and license terms.
 | File(s) | Asset | Author | Source | License | Obligations |
 |---|---|---|---|---|---|
 | `grassland_tiles.png` | Grassland Tileset (Flare) | Clint Bellanger (and contributors credited on source page) | https://opengameart.org/content/grassland-tileset | CC-BY-SA 3.0 | Attribution. Derivatives must use CC-BY-SA 3.0. |
+| `grassland_tiles.flare_v0.15_tilesetdef.txt` | Flare tileset definition for `grassland_tiles.png` (tile rectangles and anchor points, grouped by section) | Clint Bellanger and Flare contributors | https://github.com/flareteam/flare-game/blob/v0.15/mods/fantasycore/tilesetdefs/tileset_grassland.txt | CC-BY-SA 3.0 (Flare art and data files) | Attribution. Derivatives (for example the generated asset catalog) must use CC-BY-SA 3.0. |
 | `grassland_sheets.zip` | Grassland Tileset | rubberduck | https://opengameart.org/content/grassland-tileset-1 | CC0 1.0 | None. |
 | `tileset_desert.png` | Desert Tileset (derived from Flare grassland) | Amstrad | https://opengameart.org/content/desert-tileset | CC-BY-SA 3.0 | Attribution. Derivatives must use CC-BY-SA 3.0. Includes textures from seamless-pixels.blogspot.com and pdtextures.blogspot.com. |
 | `kenney_isometric-miniature-farm.zip` | Isometric Miniature Farm | Kenney | https://kenney.nl/assets/isometric-miniature-farm | CC0 1.0 | None (credit appreciated). |

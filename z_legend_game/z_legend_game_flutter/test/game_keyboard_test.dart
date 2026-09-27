@@ -1,5 +1,6 @@
 import 'package:flame_test/flame_test.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart' show KeyEventResult;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:z_legend_game_flutter/game/z_legend_game.dart';
@@ -51,4 +52,17 @@ void main() {
       expect(player.row, lessThan(rowBefore), reason: 'row should decrease');
     },
   );
+
+  test('Esc is not consumed, so the game screen can leave the game', () {
+    final game = ZLegendGame();
+    const event = KeyDownEvent(
+      physicalKey: PhysicalKeyboardKey.escape,
+      logicalKey: LogicalKeyboardKey.escape,
+      timeStamp: Duration.zero,
+    );
+    expect(
+      game.onKeyEvent(event, {LogicalKeyboardKey.escape}),
+      KeyEventResult.ignored,
+    );
+  });
 }

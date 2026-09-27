@@ -1,13 +1,23 @@
 import 'package:flutter/material.dart';
 
+import '../designer/level_designer_screen.dart';
 import 'game_screen.dart';
 
-/// Start screen with game title and "Play starter level" button.
+/// Start screen with the game title, "Level Designer" and "Play starter
+/// level" buttons.
 class StartScreen extends StatelessWidget {
   const StartScreen({super.key});
 
+  void _open(BuildContext context, Widget screen) {
+    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => screen));
+  }
+
   @override
   Widget build(BuildContext context) {
+    final buttonStyle = ElevatedButton.styleFrom(
+      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 18),
+      minimumSize: const Size(280, 0),
+    );
     return Scaffold(
       backgroundColor: Colors.black,
       body: Center(
@@ -25,19 +35,17 @@ class StartScreen extends StatelessWidget {
             ),
             const SizedBox(height: 48),
             ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const GameScreen(),
-                  ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 40,
-                  vertical: 18,
-                ),
+              onPressed: () => _open(context, const LevelDesignerScreen()),
+              style: buttonStyle,
+              child: const Text(
+                'Level Designer',
+                style: TextStyle(fontSize: 20),
               ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () => _open(context, const GameScreen()),
+              style: buttonStyle,
               child: const Text(
                 'Play starter level',
                 style: TextStyle(fontSize: 20),

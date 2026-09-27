@@ -71,7 +71,7 @@ def test_health(client):
 
 def test_asset_packs(client):
     packs = {p["id"]: p for p in client.get("/api/asset-packs").json()}
-    assert "grassland_starter" in packs
+    assert {"grassland_starter", "grassland_full"} <= packs.keys()
     pack = packs["grassland_starter"]
     assert pack["spritesheets"] == ["grassland_tiles.png"]
     assert pack["tile_size"] == {"width": 64, "height": 32}
@@ -166,8 +166,34 @@ def test_happy_path(client):
     assert sum(summary["tile_count_by_material"].values()) == 400
     assert summary["tile_count_by_material"]["stone"] == 20
     assert summary["entity_count_by_type"] == {"PlayerSpawn": 1, "ExitTrigger": 1, "Zombie": 3}
+    assert summary["tile_count_by_category"] == {"floor": 400}
+    assert summary["path_check"] == {"path_found": True, "path_length": 19}
+    assert "overlay" not in summary
     assert summary["legacy_files"] == []
     assert summary["warnings"] == []
+
+
+def test_full_pack_job(client):
+    resp = _create(client, {"prompt": "graveyard with a cabin", "asset_pack": "grassland_full"})
+    assert resp.status_code == 202, resp.text
+    created = resp.json()
+    job = _wait(client, created["status_url"])
+    assert job["status"] == "done", job
+
+    tmj = client.get(created["bundle_url"] + "level.tmj").json()
+    assert len(tmj["tilesets"]) > 1
+    for ts in tmj["tilesets"]:
+        for name in (ts["image"], f"{ts['name']}.tsj"):
+            resp = client.get(created["bundle_url"] + name)
+            assert resp.status_code == 200, name
+            expected = "image/png" if name.endswith(".png") else "application/json"
+            assert resp.headers["content-type"].startswith(expected)
+    assert [l["name"] for l in tmj["layers"]] == ["Ground", "Objects", "Entities"]
+
+    summary = job["summary"]
+    assert summary["tile_count_by_category"] == {"floor": 400, "obstacle": 32, "decoration": 20}
+    assert summary["path_check"] == {"path_found": True, "path_length": 19}
+    assert summary["overlay"] == {"obstacles_placed": 32, "decorations_placed": 20, "obstacles_removed": 0}
 
 
 def _ground(client, created) -> list[int]:
@@ -238,7 +264,10 @@ def done_job(client) -> dict:
 
 @pytest.mark.parametrize(
     "file",
-    ["job.json", "level_plan.json", "..%2Fjob.json", "..%2F..%2Fwork%2Flevel_plan.json"],
+    [
+        "job.json", "level_plan.json", "tileset_.png", "tileset_1.tmj", "tileset_x.png",
+        "tileset.png.bak", "..%2Fjob.json", "..%2F..%2Fwork%2Flevel_plan.json",
+    ],
 )
 def test_bundle_rejects_unknown_files(client, done_job, file):
     assert client.get(done_job["bundle_url"] + file).status_code == 404

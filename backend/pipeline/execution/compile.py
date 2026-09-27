@@ -10,8 +10,8 @@ Run from ``backend/``:
         --out   ../z_legend_game/z_legend_game_flutter/assets/tiles/starter
 
 Outputs:
-    <out>/tileset.tsj
-    <out>/tileset.png
+    <out>/tileset.tsj, <out>/tileset.png        (first tile group)
+    <out>/tileset_1.tsj, <out>/tileset_1.png    (further groups, if any)
     <out>/level.tmj
     <out>/preview_level.png
 """
@@ -25,7 +25,7 @@ from pathlib import Path
 
 import jsonschema
 
-from pipeline.execution.tileset_compiler import compile_tileset
+from pipeline.execution.tileset_compiler import compile_tilesets
 from pipeline.execution.map_compiler import compile_map
 from pipeline.execution.preview_renderer import render_preview
 
@@ -53,21 +53,27 @@ def _validate(instance: dict, schema_name: str) -> None:
     jsonschema.validate(instance=instance, schema=schema)
 
 
-def _resolve_source_image(catalog: dict) -> str:
+def _resolve_source(source: str) -> str:
     """
-    Resolve the source image path from the first tile's ``source`` field.
-    ``source`` values are relative to the repository root
-    (``neuro-symbolic-level-designer/``).  Absolute paths are used as-is.
+    Resolve a catalog tile ``source``. Values are relative to the repository
+    root (``neuro-symbolic-level-designer/``); absolute paths are used as-is.
     """
-    first_source = catalog["tiles"][0]["source"]
-    p = Path(first_source)
+    p = Path(source)
     resolved = p if p.is_absolute() else _REPO_ROOT / p
     if not resolved.exists():
         raise FileNotFoundError(
-            f"Cannot find source image '{first_source}'. "
-            f"Resolved to: {resolved}"
+            f"Cannot find source image '{source}'. Resolved to: {resolved}"
         )
     return str(resolved)
+
+
+def _used_catalog_ids(level_plan: dict) -> set[int]:
+    """Catalog ids in the plan's tile layers (0 is empty in overlay layers)."""
+    used: set[int] = set()
+    for index, layer in enumerate(level_plan["layers"]):
+        for row in layer["grid"]:
+            used.update(c for c in row if index == 0 or c != 0)
+    return used
 
 
 # -------------------------------------------------------------------------
@@ -76,7 +82,7 @@ def _resolve_source_image(catalog: dict) -> str:
 
 def run_compile(plan_path: str, catalog_path: str, out_dir: str) -> dict:
     """
-    Full compile pipeline.  Returns a dict with the parsed tmj, tsj, and paths.
+    Full compile pipeline.  Returns a dict with the parsed tmj, the tileset dicts, and the out dir.
     """
     catalog = _load_json(catalog_path)
     level_plan = _load_json(plan_path)
@@ -90,42 +96,29 @@ def run_compile(plan_path: str, catalog_path: str, out_dir: str) -> dict:
     _validate(level_plan, "level_plan.schema.json")
     print("OK")
 
-    # Resolve source atlas
-    source_image = _resolve_source_image(catalog)
-    print(f"Source atlas: {source_image}")
-
-    # 1. Tileset
-    print("Compiling tileset …", end=" ")
-    tsj = compile_tileset(
+    # 1. Tilesets (one per tile group used by the level)
+    print("Compiling tilesets …", end=" ")
+    tilesets = compile_tilesets(
         catalog=catalog,
-        source_image_path=source_image,
+        used_ids=_used_catalog_ids(level_plan),
         out_dir=out_dir,
+        source_resolver=_resolve_source,
     )
-    print("OK")
+    print(f"OK ({len(tilesets)})")
 
     # 2. Map
     print("Compiling map …", end=" ")
-    tmj = compile_map(
-        level_plan=level_plan,
-        catalog=catalog,
-        tileset_tsj=tsj,
-        out_dir=out_dir,
-    )
+    tmj = compile_map(level_plan=level_plan, tilesets=tilesets, out_dir=out_dir)
     print("OK")
 
     # 3. Preview
     preview_path = os.path.join(out_dir, "preview_level.png")
     print("Rendering preview …", end=" ")
-    render_preview(
-        tmj=tmj,
-        tsj=tsj,
-        tileset_png_path=os.path.join(out_dir, "tileset.png"),
-        out_path=preview_path,
-    )
+    render_preview(tmj=tmj, bundle_dir=out_dir, out_path=preview_path)
     print("OK")
 
     print(f"\nOutput written to: {os.path.abspath(out_dir)}")
-    return {"tmj": tmj, "tsj": tsj, "out_dir": out_dir}
+    return {"tmj": tmj, "tilesets": [ts.tsj for ts in tilesets], "out_dir": out_dir}
 
 
 # -------------------------------------------------------------------------

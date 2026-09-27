@@ -28,6 +28,7 @@
           "elevation": { "type": "integer" },
           "grid": {
             "type": "array",
+            "description": "Catalog ids. In layers after the first, 0 means an empty cell.",
             "items": {
               "type": "array",
               "items": { "type": "integer" }
@@ -49,6 +50,18 @@
           "row":        { "type": "integer" },
           "properties": { "type": "object" }
         }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "description": "Planner facts for the job summary (placeholder planner with obstacles).",
+      "additionalProperties": false,
+      "properties": {
+        "obstacles_placed":   { "type": "integer" },
+        "decorations_placed": { "type": "integer" },
+        "obstacles_removed":  { "type": "integer" },
+        "path_found":         { "type": "boolean" },
+        "path_length":        { "type": ["integer", "null"] }
       }
     }
   }

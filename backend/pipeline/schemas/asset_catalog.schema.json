@@ -18,18 +18,31 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id", "name", "category", "walkable", "offset"],
+        "required": ["id", "name", "source", "category", "walkable", "rect", "anchor"],
         "additionalProperties": false,
         "properties": {
-          "id":       { "type": "integer" },
-          "name":     { "type": "string" },
-          "source":   { "type": "string" },
-          "category": { "type": "string", "enum": ["floor", "wall", "ramp", "obstacle", "decoration"] },
-          "walkable": { "type": "boolean" },
-          "material": { "type": "string" },
-          "elevation":{ "type": "integer", "default": 0 },
-          "offset": {
+          "id":        { "type": "integer" },
+          "name":      { "type": "string" },
+          "source":    { "type": "string", "description": "Spritesheet path, relative to the repository root" },
+          "category":  { "type": "string", "enum": ["floor", "wall", "ramp", "obstacle", "decoration", "water", "hazard"] },
+          "walkable":  { "type": "boolean" },
+          "material":  { "type": "string" },
+          "elevation": { "type": "integer", "default": 0 },
+          "rect": {
             "type": "object",
+            "description": "Sprite rectangle in the spritesheet, in pixels",
+            "required": ["x", "y", "w", "h"],
+            "additionalProperties": false,
+            "properties": {
+              "x": { "type": "integer" },
+              "y": { "type": "integer" },
+              "w": { "type": "integer", "minimum": 1 },
+              "h": { "type": "integer", "minimum": 1 }
+            }
+          },
+          "anchor": {
+            "type": "object",
+            "description": "Point in the sprite (pixels from its top-left) that sits on the center of the tile's base diamond. Floor tiles 64 x 32: (32, 16).",
             "required": ["x", "y"],
             "additionalProperties": false,
             "properties": {
@@ -37,6 +50,8 @@
               "y": { "type": "integer" }
             }
           },
+          "tags":       { "type": "array", "items": { "type": "string" } },
+          "source_ref": { "type": "string", "description": "Identifier in a legacy definition, for example 'flare:tile=16'" },
           "collision_polygon": {
             "type": "array",
             "items": {

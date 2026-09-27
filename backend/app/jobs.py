@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import threading
 import uuid
 from collections import Counter
@@ -19,17 +20,22 @@ from pathlib import Path
 from pipeline.errors import StageError
 from pipeline.execution.compile import run_compile
 from pipeline.ingestion.run import IngestionRequest, LegacyFile, run_ingestion
+from pipeline.planning.pathing import path_check
 from pipeline.planning.run import run_planning
 
 log = logging.getLogger(__name__)
 
 STAGES = ("ingesting", "planning", "executing")
-BUNDLE_FILES = {
-    "level.tmj": "application/json",
-    "tileset.tsj": "application/json",
-    "tileset.png": "image/png",
-    "preview_level.png": "image/png",
-}
+# Bundle files that may be served: the map, its preview, and the tilesets
+# (tileset.png/.tsj, tileset_1.png/.tsj, ...). Everything else is 404.
+BUNDLE_FILE_RE = re.compile(r"level\.tmj|preview_level\.png|tileset(_\d+)?\.(png|tsj)")
+
+
+def bundle_media_type(name: str) -> str | None:
+    """Content type of an allowed bundle file name, or None if not allowed."""
+    if not BUNDLE_FILE_RE.fullmatch(name):
+        return None
+    return "image/png" if name.endswith(".png") else "application/json"
 
 
 @dataclass
@@ -91,7 +97,7 @@ class JobManager:
             os.replace(tmp, path)
 
     def bundle_file(self, job_id: str, name: str) -> Path | None:
-        if name not in BUNDLE_FILES:
+        if bundle_media_type(name) is None:
             return None
         path = self._job_dir(job_id) / "bundle" / name
         return path if path.is_file() else None
@@ -188,17 +194,27 @@ class JobManager:
 def _summarize(plan_path: Path, catalog_path: Path, legacy_files: list[dict]) -> dict:
     plan = json.loads(plan_path.read_text(encoding="utf-8"))
     catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
-    material = {t["id"]: t.get("material", "unknown") for t in catalog["tiles"]}
-    tiles = Counter(
-        material.get(tile_id, "unknown")
-        for layer in plan["layers"]
+    by_id = {t["id"]: t for t in catalog["tiles"]}
+    # Every Ground cell, and the non-empty cells of the layers after it.
+    placed = [
+        by_id[tile_id]
+        for index, layer in enumerate(plan["layers"])
         for row in layer["grid"]
         for tile_id in row
-    )
+        if index == 0 or tile_id != 0
+    ]
     props = plan["map_properties"]
-    return {
+    summary = {
         "map_size": {"width": props["width"], "height": props["height"]},
-        "tile_count_by_material": dict(tiles),
+        "tile_count_by_material": dict(Counter(t.get("material", "unknown") for t in placed)),
+        "tile_count_by_category": dict(Counter(t["category"] for t in placed)),
         "entity_count_by_type": dict(Counter(o["type"] for o in plan["objects"])),
+        "path_check": path_check(plan, catalog),
         "legacy_files": legacy_files,
     }
+    planner = plan.get("summary", {})
+    if "obstacles_placed" in planner:
+        summary["overlay"] = {
+            k: planner[k] for k in ("obstacles_placed", "decorations_placed", "obstacles_removed")
+        }
+    return summary

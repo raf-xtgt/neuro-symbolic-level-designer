@@ -29,7 +29,7 @@ class LevelLoader {
     final map = TileMapParser.parseJson(_normalizeForTiled(contents));
     final renderable = await RenderableTiledMap.fromTiledMap(
       map,
-      Vector2(64, 32),
+      Vector2(map.tileWidth.toDouble(), map.tileHeight.toDouble()),
       images: Images(prefix: source.prefix, bundle: source.bundle),
       bundle: source.bundle,
     );
@@ -45,6 +45,9 @@ class LevelLoader {
   ///   so every object layer parses as empty.
   /// - an image is read as a list of `{source, width, height}` objects under
   ///   `image`, but TMJ stores a plain string plus `imagewidth`/`imageheight`.
+  /// - a tileset's `tileoffset` and `grid` are read as lists of child
+  ///   objects, but TMJ stores single objects; a tileset with a `tileoffset`
+  ///   (tall sprites) fails to parse. Wrap them in a list.
   /// - `ellipse` and `point` are required on every object, but Tiled only
   ///   writes them when true. Default them to false.
   static String _normalizeForTiled(String contents) {
@@ -67,6 +70,9 @@ class LevelLoader {
         .cast<Map<String, dynamic>>();
     for (final tileset in tilesets) {
       wrapImage(tileset);
+      for (final key in const ['tileoffset', 'grid']) {
+        if (tileset[key] is Map) tileset[key] = [tileset[key]];
+      }
       final tiles = tileset['tiles'] as List<dynamic>? ?? const [];
       tiles.cast<Map<String, dynamic>>().forEach(wrapImage);
     }

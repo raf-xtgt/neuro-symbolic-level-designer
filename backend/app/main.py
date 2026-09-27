@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from starlette.datastructures import UploadFile
 
 from app.asset_packs import BACKEND_DIR, DEFAULT_PACKS_DIR, discover_packs
-from app.jobs import BUNDLE_FILES, JobManager, LevelRequest, Upload, parse_job_id
+from app.jobs import JobManager, LevelRequest, Upload, bundle_media_type, parse_job_id
 from app.models import (
     AssetPackInfo,
     FieldError,
@@ -183,7 +183,7 @@ def create_app(
         path = jobs.bundle_file(canonical, file) if canonical else None
         if path is None:
             return _not_found()
-        return FileResponse(path, media_type=BUNDLE_FILES[file])
+        return FileResponse(path, media_type=bundle_media_type(file))
 
     return app
 

@@ -284,7 +284,7 @@ flowchart LR
 ### 5.2 Deterministic Tileset Compiler
 * Generates the Tiled Tileset file (`.tsj` or `.tsx`) and the packed tileset image (`tileset.png`). The standalone tileset file is kept for reuse and inspection; the game uses the copy embedded in the map.
 * Embeds tile width, tile height, margins, and spacing.
-* Embeds isometric tile offset values for tall wall sprites.
+* Groups tiles by sprite size and anchor. Each group becomes one Tiled tileset with its own packed image (`tileset.png`, `tileset_1.png`, ...) and a `tileoffset` that puts the anchor on the tile center. For flame_tiled 3.1.2, which draws a sprite with its pixel `(w - W/2, h - H/2)` on the tile center (W x H = map tile size), the offset is `(w - W/2 - anchor.x, h - H/2 - anchor.y)`.
 * Embeds collision polygon shapes directly into the tile definitions.
 
 ### 5.3 Template-Assisted Flame Code Generator Agent
@@ -330,21 +330,35 @@ The Data Ingestion Pipeline outputs this contract.
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id", "name", "category", "walkable", "offset"],
+        "required": ["id", "name", "source", "category", "walkable", "rect", "anchor"],
         "properties": {
           "id": { "type": "integer" },
           "name": { "type": "string" },
-          "category": { "enum": ["floor", "wall", "ramp", "obstacle", "decoration"] },
+          "source": { "type": "string", "description": "Spritesheet path, relative to the repository root" },
+          "category": { "enum": ["floor", "wall", "ramp", "obstacle", "decoration", "water", "hazard"] },
           "walkable": { "type": "boolean" },
+          "material": { "type": "string", "example": "grass" },
           "elevation": { "type": "integer", "default": 0 },
-          "offset": {
+          "rect": {
             "type": "object",
+            "description": "Sprite rectangle in the spritesheet, in pixels",
+            "required": ["x", "y", "w", "h"],
+            "properties": {
+              "x": { "type": "integer" }, "y": { "type": "integer" },
+              "w": { "type": "integer" }, "h": { "type": "integer" }
+            }
+          },
+          "anchor": {
+            "type": "object",
+            "description": "Point in the sprite (pixels from its top-left) that sits on the center of the tile's base diamond. Floor tiles 64 x 32: (32, 16).",
             "required": ["x", "y"],
             "properties": {
               "x": { "type": "integer" },
               "y": { "type": "integer" }
             }
           },
+          "tags": { "type": "array", "items": { "type": "string" }, "example": ["tree", "autotile_required"] },
+          "source_ref": { "type": "string", "description": "Identifier in a legacy definition, for example 'flare:tile=16'" },
           "collision_polygon": {
             "type": "array",
             "items": {
@@ -375,6 +389,8 @@ The Data Ingestion Pipeline outputs this contract.
   }
 }
 ```
+
+**Tile geometry:** `rect` locates the sprite in its spritesheet. `anchor` is the foot point of the sprite: the Tile Boundary Agent (3.2.1) computes it, or a legacy definition supplies it. The Tileset Compiler groups tiles with the same size and anchor into one Tiled tileset and sets that tileset's `tileoffset` so the anchor lands on the tile center (section 5.2). Tall sprites (walls, trees) therefore need no special handling in the planner.
 
 ### 6.2 Room Topology Graph Contract (`topology_graph.json`)
 The Spatial Topology Planner Agent outputs this intermediate macro-layout contract before procedural expansion and WFC dressing.
@@ -496,7 +512,7 @@ The game uses `flame` + `flame_tiled` 3.1.2 (with `tiled` 0.11.1).
 ```dart
 /// Where a level bundle comes from: bundled assets or the backend URL ("Try Out").
 class LevelSource {
-  final AssetBundle bundle; // rootBundle, or NetworkAssetBundle(baseUrl)
+  final AssetBundle bundle; // rootBundle, or HttpAssetBundle(baseUrl)
   final String prefix;      // 'assets/tiles/starter/' or '' for network
 }
 
@@ -539,7 +555,7 @@ The backend (`backend/`, Python + FastAPI) runs the three pipelines as a job and
 * `tilesets` (`.tsx` / `.tsj`, optional, 0 to 10), `maps` (`.tmx` / `.tmj`, optional, 0 to 5).
 * Invalid input returns `422` with a list of field errors. Files are checked by content (PNG signature, parseable XML or JSON), not only by extension.
 
-**"Try Out":** the game creates `LevelSource.network(Uri.parse('http://localhost:8000/api/levels/{job_id}/bundle/'))` and loads `level.tmj` from it (section 7).
+**"Try Out":** the game creates `LevelSource.network(Uri.parse('http://localhost:8000/api/levels/{job_id}/bundle/'))` and loads `level.tmj` from it (section 7). The network source uses an `HttpAssetBundle` built on the `http` package. Flutter's `NetworkAssetBundle` is not used: it depends on `dart:io` `HttpClient`, which does not work on Flutter web.
 
 ## 9. Summary of Technical Advantages
 

@@ -1,0 +1,99 @@
+{
+  "id": "grassland_full",
+  "name": "Grassland Full",
+  "description": "136 tiles from the Flare grassland tileset: grass and stone floors, cliffs, water, rocks, town objects, shrubs and trees.",
+  "spritesheets": [
+    "game-assets/grassland_tiles.png"
+  ],
+  "catalog": "asset_packs/grassland_full/asset_catalog.json",
+  "tile_size": {
+    "width": 64,
+    "height": 32
+  },
+  "license": "CC-BY-SA 3.0",
+  "credits": "Grassland tileset and Flare tileset definition by Clint Bellanger and Flare contributors.",
+  "excluded_sections": [
+    {
+      "section": "tents",
+      "reason": "multi-tile assembly",
+      "tile_count": 8
+    },
+    {
+      "section": "indicators",
+      "reason": "editor markers",
+      "tile_count": 4
+    },
+    {
+      "section": "riverbanks",
+      "reason": "needs autotile rules",
+      "tile_count": 32
+    },
+    {
+      "section": "wood_bridge_wharf",
+      "reason": "needs autotile rules",
+      "tile_count": 16
+    },
+    {
+      "section": "buildings",
+      "reason": "multi-tile assembly",
+      "tile_count": 8
+    },
+    {
+      "section": "broken_tower",
+      "reason": "multi-tile assembly",
+      "tile_count": 7
+    },
+    {
+      "section": "cave_tileset_entrances",
+      "reason": "multi-tile assembly",
+      "tile_count": 8
+    },
+    {
+      "section": "temple_entrance",
+      "reason": "multi-tile assembly",
+      "tile_count": 7
+    }
+  ],
+  "empty_rects": [
+    {
+      "flare_id": 76,
+      "section": "tents"
+    },
+    {
+      "flare_id": 77,
+      "section": "tents"
+    },
+    {
+      "flare_id": 78,
+      "section": "tents"
+    },
+    {
+      "flare_id": 79,
+      "section": "tents"
+    },
+    {
+      "flare_id": 92,
+      "section": "indicators"
+    },
+    {
+      "flare_id": 93,
+      "section": "indicators"
+    },
+    {
+      "flare_id": 94,
+      "section": "indicators"
+    },
+    {
+      "flare_id": 95,
+      "section": "indicators"
+    },
+    {
+      "flare_id": 174,
+      "section": "riverbanks"
+    },
+    {
+      "flare_id": 175,
+      "section": "riverbanks"
+    }
+  ]
+}

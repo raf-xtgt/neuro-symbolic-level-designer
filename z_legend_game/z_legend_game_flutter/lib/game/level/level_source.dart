@@ -1,4 +1,7 @@
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
+
+import 'http_asset_bundle.dart';
 
 /// Describes where to load a level bundle from.
 ///
@@ -18,16 +21,14 @@ class LevelSource {
     return LevelSource(bundle: rootBundle, prefix: assetFolder);
   }
 
-  /// Loads a level bundle from a remote URL at runtime.
+  /// Loads a level bundle from a remote URL at runtime ("Try Out").
   ///
   /// [baseUrl] must point to the folder that contains `level.tmj`, e.g.
-  /// `https://example.com/levels/my_level/`.
-  factory LevelSource.network(Uri baseUrl) {
-    final prefix = baseUrl.toString().endsWith('/')
-        ? baseUrl.toString()
-        : '${baseUrl.toString()}/';
+  /// `http://localhost:8000/api/levels/<job_id>/bundle/`. Pass [client] to
+  /// serve the files from a mock in tests.
+  factory LevelSource.network(Uri baseUrl, {http.Client? client}) {
     return LevelSource(
-      bundle: NetworkAssetBundle(Uri.parse(prefix)),
+      bundle: HttpAssetBundle(baseUrl, client: client),
       prefix: '',
     );
   }

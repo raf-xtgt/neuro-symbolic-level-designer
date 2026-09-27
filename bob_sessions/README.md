@@ -25,3 +25,6 @@ Each IBM Bob task has its own folder. The folder contains the prompt given to Bo
 | 04 | `04_asset_paths/` | Resolve asset paths from the repository root after moving `game-assets/` into the repo. | Done |
 | 05 | `05_flame_game/` | Task B: playable Flame game on the starter level (level loader, isometric math, player, zombies, exit). | Done (Prompts 1-2: IBM Bob; Prompt 3: Claude Code, Bob out of credits). Browser check passed. |
 | 06 | `06_fastapi_backend/` | FastAPI backend: input contract validation, asset packs, job stages, bundle serving. | Done (Claude Code, Bob out of credits) |
+| 07 | `07_level_designer/` | Level Designer screen, API client, progress, result, Try Out (web-safe network loading). | Done (Claude Code). Browser check passed. |
+| 08 | `08_grassland_full_pack/` | Asset pack with walls, obstacles, decorations, water; multi-size tilesets; Pipeline 1 slicer measured against the Flare answer key. | Done (Claude Code) |
+| 09 | `09_collision_depth/` | Obstacle collision, depth sorting of tall sprites with occlusion fade, shared movement rule, fence tag, tight-box slicer metric. | Pending |
