@@ -34,11 +34,20 @@ so cliffs, water and fences (``autotile_required`` / ``fence``) are not used.
     (``FRONT_DECORATION_DENSITY``). It is unreachable behind the hedge.
   - Back and side zones: dense trees and rock pillars.
   Trees favor the style: when the style names tree groups, at least
-  ``STYLE_TREE_SHARE`` of the trees come from them. A catalog without tree,
-  pillar or low-blocker families (a farm or an indoor set) uses any blocking
-  obstacle group (else blocking decoration group) for all of these. Without blocking tiles in
-  the catalog the wilderness stays floor and the map edge is the boundary
-  (with a warning).
+  ``STYLE_TREE_SHARE`` of the trees come from them.
+  A catalog without tree, pillar or low-blocker families (a farm or an
+  indoor set) is sparse instead: only the hedge blocks, with the blocking
+  obstacle groups (else blocking decoration groups) of the smallest sprites
+  (``HEDGE_SMALL_SHARE`` of them, style weighted), and every cell beyond it
+  is open main floor with sparse decorations (``SPARSE_DECORATION_DENSITY``).
+  Without blocking tiles in the catalog the wilderness stays floor and the
+  map edge is the boundary (with a warning).
+* Room variety (catalogs without natural blockers, where one group such as
+  bookcases would dominate): when a room has 2 or more prop groups, one group
+  takes at most ``MAX_GROUP_SHARE`` of its prop cells (half with 2 groups): clusters
+  go to groups under that share, and a room keeps placing past its density
+  until balanced (the latest clusters of a group above it are dropped if the
+  room runs out of free cells).
 * Camera clearance (occlusion guard, 4.1.2): a sprite H px tall covers the
   cells up to about H / 16 steps of col + row behind it on screen, so the
   cells in front of a playable cell (larger col + row, similar screen x) only
@@ -68,6 +77,9 @@ PILLAR_FAMILIES = ("rock_pillar",)
 PILLAR_SHARE = 0.2  # of the trees-and-pillars cells
 STYLE_TREE_SHARE = 0.9
 FRONT_DECORATION_DENSITY = 0.15
+SPARSE_DECORATION_DENSITY = 0.10  # beyond the hedge, catalogs without natural blockers
+HEDGE_SMALL_SHARE = 0.5  # of the blocking groups, smallest sprites first (catalogs without natural blockers)
+MAX_GROUP_SHARE = 0.4  # of a room's prop cells
 HEDGE_THICKNESS = 2
 SHORT_DEPTH = 3  # steps of col + row in front of a playable cell (16 px each on screen)
 PILLAR_DEPTH = 8
@@ -138,6 +150,7 @@ def dress(
             blocked.update(cells)
         taken.update((c + dc, r + dr) for c, r in cells for dc in (-1, 0, 1) for dr in (-1, 0, 1))
 
+    wild = _WildPicker(topology, digest, rng)
     for room in topology.rooms:
         rect = layout.rooms[room.id]
         free = {cell for cell in rect.cells() if cell not in reserved}
@@ -167,12 +180,23 @@ def dress(
         starts = sorted(free)
         rng.shuffle(starts)
         placed = clusters = 0
+        kinds = len({g.id for g, _ in props}) if wild.fallback else 1
+        max_share = max(MAX_GROUP_SHARE, 1 / kinds)  # 2 groups: at best half each
+        room_props: list[tuple[TileGroup, list[Cell]]] = []
+        by_group: Counter = Counter()
         for start in starts:
-            if placed >= wanted and clusters >= min_clusters:
+            balanced = max(by_group.values(), default=0) <= max_share * placed
+            if placed >= wanted and clusters >= min_clusters and balanced:
                 break
             if start in taken:
                 continue
-            group = _pick_prop(props, room.purpose, rng)
+            options = props
+            if kinds > 1:  # groups that stay under the share with one more small cluster, else the least used
+                under = [(g, w) for g, w in props
+                         if by_group[g.id] + CLUSTER_SIZE[0] <= max_share * (placed + CLUSTER_SIZE[0])]
+                least = min(by_group[g.id] for g, _ in props)
+                options = under or [(g, w) for g, w in props if by_group[g.id] == least]
+            group = _pick_prop(options, room.purpose, rng)
             cluster = _grow(start, rng.randint(*CLUSTER_SIZE), free, taken, rng)
             if group.blocks:  # drop cells until every playable cell stays reachable
                 while len(cluster) >= CLUSTER_SIZE[0] and not _still_connected(
@@ -184,24 +208,40 @@ def dress(
             for cell in cluster:
                 put(cell, group)
             claim(cluster, group)
+            room_props.append((group, cluster))
+            by_group[group.id] += len(cluster)
             placed += len(cluster)
             clusters += 1
         if clusters < min_clusters:
             warnings.append(f"room {room.id}: only {clusters} prop clusters fit")
+        # Out of free cells while unbalanced: drop the latest clusters of a group above its share
+        # (freeing cells keeps every playable cell reachable).
+        while kinds > 1 and room_props and max(by_group.values()) > max_share * placed:
+            over = max(by_group, key=by_group.get)
+            index = max(i for i, (g, _) in enumerate(room_props) if g.id == over)
+            group, cells = room_props.pop(index)
+            for c, r in cells:
+                objects[r][c] = 0
+            counts[group.id] -= len(cells)
+            by_group[group.id] -= len(cells)
+            placed -= len(cells)
+            blocked.difference_update(cells)
+            if not room_props:
+                warnings.append(f"room {room.id}: too small for varied props")
 
     # -- Wilderness -------------------------------------------------------
-    wild = _WildPicker(topology, digest, rng)
     if wild.any:
         depth = _clearance_depth(playable)
         hedge = _hedge(playable, width, height, depth)
         decorations = _front_decorations(topology, digest)
+        sparse = wild.fallback
         for r in range(height):
             for c in range(width):
                 cell = (c, r)
                 if cell in playable:
                     continue
                 d = depth.get(cell)
-                if cell in hedge and d is not None and d <= SHORT_DEPTH:
+                if cell in hedge and (sparse or (d is not None and d <= SHORT_DEPTH)):
                     near = {
                         objects[r + dr][c + dc] for dc in (-1, 0, 1) for dr in (-1, 0, 1)
                         if 0 <= r + dr < height and 0 <= c + dc < width
@@ -210,8 +250,9 @@ def dress(
                     continue
                 if cell in hedge:
                     group = wild.pillar() if d is not None else wild.tall()
-                elif d is not None:  # front zone: open, sparse decorations
-                    if not decorations or rng.random() >= FRONT_DECORATION_DENSITY:
+                elif sparse or d is not None:  # front zone (or everything): open, sparse decorations
+                    density = SPARSE_DECORATION_DENSITY if sparse else FRONT_DECORATION_DENSITY
+                    if not decorations or rng.random() >= density:
                         continue
                     group = _choose(decorations, rng)
                 else:
@@ -394,13 +435,17 @@ class _WildPicker:
 
         trees = [g for g in blocking if g.family.startswith(TREE_PREFIX)]
         self.pillars = weighted([g for g in blocking if g.family in PILLAR_FAMILIES])
-        if not trees and not self.pillars:  # for example hay bales, crates, bookcases
+        low = [(g, LOW_FAMILIES[g.family]) for g in blocking if g.family in LOW_FAMILIES]
+        # No natural blockers (hay bales, crates, bookcases): a sparse hedge of the smallest sprites.
+        self.fallback = bool(blocking) and not trees and not self.pillars and not low
+        if not trees and not self.pillars:
             trees = blocking
         self.trees = weighted(trees)
         self.style_trees = [(g, style[g.id]) for g in trees if style.get(g.id, 0.0) > 0]
-        self.short = (
-            [(g, LOW_FAMILIES[g.family]) for g in blocking if g.family in LOW_FAMILIES] or self.pillars or self.trees
-        )
+        if self.fallback:
+            small = sorted(blocking, key=lambda g: (g.tall, g.sprite_area, g.id))
+            low = weighted(small[:max(1, round(len(small) * HEDGE_SMALL_SHARE))])
+        self.short = low or self.pillars or self.trees
 
     @property
     def any(self) -> bool:

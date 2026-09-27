@@ -11,7 +11,9 @@ Deterministic. Works for any catalog:
     once per room, by name in a room's ``dressing``.
 Tiles tagged ``autotile_required``, ``fence`` or ``structure_part`` are left
 out of every group: there are no placement rules for them yet (cliffs, water,
-fence connectors, slices of multi-tile buildings).
+fence connectors, slices of multi-tile buildings). Tiles tagged ``void`` or
+``floor_outlier`` (Pipeline 1: near-black sprites, dark floor variants) are
+left out too; they stay in the catalog for inspection.
 
 The digest is the only catalog information the LLM sees.
 """
@@ -19,8 +21,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-EXCLUDED_TAGS = {"autotile_required", "fence", "structure_part"}
-GENERIC_TAGS = {"prop", "tall", "tree", "autotile_required", "fence", "structure", "structure_part"}
+EXCLUDED_TAGS = {"autotile_required", "fence", "structure_part", "void", "floor_outlier"}
+GENERIC_TAGS = {"prop", "tall", "tree", "autotile_required", "fence", "structure", "structure_part", "void",
+                "floor_outlier"}
 GROUPED_CATEGORIES = ("floor", "obstacle", "decoration")
 STRUCTURE = "structure"
 FOOTPRINT_TAG = "footprint_"
@@ -61,6 +64,7 @@ class TileGroup:
     tile_ids: tuple[int, ...]
     description: str
     footprint: int = 1  # tiles along the east diagonal (structures)
+    sprite_area: int = 64 * 32  # px, the largest sprite of the group
 
     @property
     def count(self) -> int:
@@ -160,6 +164,7 @@ def build_digest(catalog: dict) -> CatalogDigest:
             tile_ids=tuple(t["id"] for t in tiles),
             description=_describe(gid, category, len(tiles), walkable, tall, example, footprint),
             footprint=footprint,
+            sprite_area=max(t.get("rect", {}).get("w", 64) * t.get("rect", {}).get("h", 32) for t in tiles),
         ))
     return CatalogDigest(tuple(groups))
 

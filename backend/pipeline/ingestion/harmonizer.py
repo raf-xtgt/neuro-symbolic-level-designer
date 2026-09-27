@@ -27,16 +27,24 @@ conflicts.
    multiple of 32 px, with the anchor at the bottom center of the base
    diamond (``game-assets/ASSET_SPEC.md``). Tiles of the same cell size share
    one tileset in Pipeline 3, and no neighbor pixels bleed in.
-6. Quality gate: at least one walkable floor family with 2 or more tiles,
+6. Dark outliers (deterministic, from the pixels): a chip where more than
+   ``VOID_SHARE`` of the opaque pixels are near black (luminance below
+   ``VOID_LUMINANCE``) is excluded as ``void`` (holes, pits, dark cave
+   pieces). Inside each floor family, a tile whose median opaque luminance is
+   more than ``FLOOR_OUTLIER_DROP`` below the family median is tagged
+   ``floor_outlier`` (kept in the catalog, left out of the Pipeline 2 digest).
+7. Quality gate: at least one walkable floor family with 2 or more tiles,
    else ``ingestion_no_floor``.
 """
 from __future__ import annotations
 
 import math
 import re
+import statistics
 from collections import Counter
 from dataclasses import dataclass, field
 
+import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 from pydantic import BaseModel
 
@@ -51,6 +59,12 @@ _GENERIC_FAMILY_RENAMES = {"tree": "tree_plain", "prop": "prop_item", "tall": "t
 BUILDING_WORDS = {"house", "cabin", "building", "hut", "shack", "tent", "tower", "roof"}
 ATLAS_WIDTH = 2048
 ATLAS_NAME = "catalog_atlas.png"
+# Packs draw opaque black shadows: trees and tall grass reach 48% of pixels
+# below 16 (the grassland sheet), black void pieces 65% and more.
+VOID_LUMINANCE = 16  # 0..255
+VOID_SHARE = 0.6  # of the opaque pixels
+FLOOR_OUTLIER_DROP = 0.35  # darker than the family median by more than this share
+OPAQUE_ALPHA = 128
 
 
 @dataclass
@@ -79,6 +93,7 @@ class ChipRecord:
     conflicts: list[str] = field(default_factory=list)
     resolution: dict | None = None
     catalog_id: int | None = None
+    floor_outlier: bool = False
 
 
 def normalize_family(name: str, fallback: str = "tile") -> str:
@@ -279,6 +294,36 @@ def structure_role(rec: ChipRecord) -> str | None:
 
 
 # ---------------------------------------------------------------------------
+# Dark outliers
+# ---------------------------------------------------------------------------
+
+def _luminance(sprite: Image.Image) -> np.ndarray:
+    """Luminance (0..255) of the opaque pixels of ``sprite``."""
+    rgba = np.asarray(sprite.convert("RGBA"), dtype=np.float32)
+    opaque = rgba[..., 3] >= OPAQUE_ALPHA
+    return (rgba[..., :3] @ np.array([0.299, 0.587, 0.114], dtype=np.float32))[opaque]
+
+
+def mark_dark(records: list[ChipRecord], sheets: dict[int, Image.Image]) -> None:
+    """Excludes near-black sprites as ``void``; flags dark floor variants as ``floor_outlier``."""
+    floor_luma: dict[str, list[tuple[ChipRecord, float]]] = {}
+    for rec in records:
+        if rec.excluded:
+            continue
+        luma = _luminance(rec.chip.image(sheets[rec.chip.sheet]))
+        if not luma.size:
+            continue
+        if float(np.mean(luma < VOID_LUMINANCE)) > VOID_SHARE:
+            rec.excluded = "void"
+        elif rec.category == "floor":
+            floor_luma.setdefault(rec.family, []).append((rec, float(np.median(luma))))
+    for members in floor_luma.values():
+        median = statistics.median(v for _, v in members)
+        for rec, value in members:
+            rec.floor_outlier = value < (1 - FLOOR_OUTLIER_DROP) * median
+
+
+# ---------------------------------------------------------------------------
 # Catalog
 # ---------------------------------------------------------------------------
 
@@ -299,6 +344,7 @@ def build_catalog(
     records: list[ChipRecord], sheets: dict[int, Image.Image], sheet_names: dict[int, str], atlas_source: str,
 ) -> tuple[dict, Image.Image]:
     """Catalog dict (6.1) and the normalized atlas image."""
+    mark_dark(records, sheets)
     kept = [r for r in records if not r.excluded]
     order = {c: i for i, c in enumerate(("floor", "water", "wall", "obstacle", "decoration", "hazard", "ramp"))}
     kept.sort(key=lambda r: (order.get(r.category, 9), r.family, r.chip.number))
@@ -338,6 +384,8 @@ def build_catalog(
             tags.append(role)
         if role == "structure":
             tags.append(f"footprint_{rec.chip.footprint}")
+        if rec.floor_outlier:
+            tags.append("floor_outlier")
         tile = {
             "id": tile_id,
             "name": f"{rec.family}_{nn:02d}",

@@ -44,7 +44,7 @@ from pipeline.llm.base import LLMProvider
 from pipeline.llm.config import setting, vision_thinking_level
 from pipeline.llm.usage import UsageTracker
 
-PIPELINE1_VERSION = "2"
+PIPELINE1_VERSION = "3"
 DEFAULT_CONCURRENCY = 6
 OUTPUT_FILES = ("asset_catalog.json", "ingestion_report.json", "contact_sheet.png", ATLAS_NAME)
 
@@ -302,6 +302,7 @@ def _chip_report(rec, missing: dict[str, list[int]]) -> dict:
         "conflicts": rec.conflicts,
         "resolution": rec.resolution,
         "catalog_id": rec.catalog_id,
+        "floor_outlier": rec.floor_outlier,
     }
 
 

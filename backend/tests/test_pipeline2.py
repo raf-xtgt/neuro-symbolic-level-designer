@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import copy
 import json
+from collections import Counter
 from pathlib import Path
 
 import pytest
@@ -13,7 +14,7 @@ import pytest
 from pipeline.llm.fake import FakeProvider
 from pipeline.planning.catalog_digest import build_digest
 from pipeline.planning.dressing import (
-    CLUSTER_SIZE, LOW_FAMILIES, PILLAR_DEPTH, SHORT_DEPTH, _clearance_depth, _hedge, dress,
+    CLUSTER_SIZE, LOW_FAMILIES, MAX_GROUP_SHARE, PILLAR_DEPTH, SHORT_DEPTH, _clearance_depth, _hedge, dress,
 )
 from pipeline.planning.graph import plan_with_llm
 from pipeline.planning.layout import GAP, MARGIN, MAX_MAP, MIN_MAP, LayoutError, RoomRect, build_layout
@@ -626,3 +627,40 @@ def test_small_catalogs_make_enclosed_levels(name):
             seen = reachable(layout.width, layout.height, blocked, (spawn["row"], spawn["col"]))
             assert {(c, r) for r, c in seen} <= playable
             assert all(ground[r][c] in floors for c, r in layout.corridor_cells)
+
+
+INDOOR = _catalog([
+    ("floor", "wood", True, ["wood"], 3),
+    ("obstacle", "wood", False, ["bookcase", "prop"], 3), ("obstacle", "wood", False, ["table", "prop"], 2),
+    ("obstacle", "wood", False, ["chair", "prop"], 2), ("decoration", "paper", True, ["book", "prop"], 2),
+])
+for _tile in INDOOR["tiles"]:
+    if "bookcase" in _tile["tags"]:
+        _tile["rect"]["h"] = 128  # the largest sprite
+
+
+def test_catalog_without_natural_blockers_gets_a_sparse_wilderness():
+    digest = build_digest(INDOOR)
+    group_of = {i: g for g in digest.groups for i in g.tile_ids}
+    walkable = {t["id"]: t["walkable"] for t in INDOOR["tiles"]}
+    style = [{"tile_group": "floor.wood", "weight": 1.0}, {"tile_group": "obstacle.bookcase", "weight": 0.6},
+             {"tile_group": "obstacle.table", "weight": 0.2}, {"tile_group": "obstacle.chair", "weight": 0.2}]
+    graph = TOPOLOGIES["four_compass"].model_copy(update={"style_distribution": [StyleWeight(**s) for s in style]})
+    for seed in range(4):
+        outcome = _plan(graph, seed, catalog=INDOOR)
+        assert outcome.report["passed"], outcome.report
+        layout, objects = outcome.layout, outcome.plan["layers"][1]["grid"]
+        playable = layout.playable_cells
+        hedge = _hedge(playable, layout.width, layout.height, _clearance_depth(playable))
+        for r, row in enumerate(objects):
+            for c, v in enumerate(row):
+                if (c, r) in hedge:
+                    assert v and not walkable[v] and group_of[v].id != "obstacle.bookcase", (seed, c, r)
+                elif (c, r) not in playable:
+                    assert not v or walkable[v], (seed, c, r)
+        furnished = 0
+        for room in layout.rooms.values():
+            props = Counter(group_of[objects[r][c]].id for c, r in room.cells() if objects[r][c])
+            assert max(props.values(), default=0) <= MAX_GROUP_SHARE * sum(props.values()), (seed, props)
+            furnished += bool(props)
+        assert furnished >= len(layout.rooms) - 1

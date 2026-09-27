@@ -32,6 +32,7 @@ from pipeline.ingestion.preprocess import (
     is_base_diamond, prepare_sheet,
 )
 from pipeline.llm.usage import UsageTracker
+from pipeline.planning.catalog_digest import build_digest
 from tests.pipeline1_helpers import (
     FailingProvider, ScriptedProvider, character_sheet, default_rules, diamond, floor_sheet, paste, tree,
 )
@@ -340,6 +341,28 @@ def test_catalog_atlas_cells_are_normalized():
     assert rock["tags"] == ["rock", "prop"] and rock["source_ref"] == "upload:s.png#0"
     assert "collision_polygon" in rock and "collision_polygon" not in grass
     assert atlas.size[0] == 2048
+
+
+def test_void_sprites_and_dark_floor_variants():
+    sheet = np.zeros((64, 320, 4), dtype=np.uint8)
+    paste(sheet, diamond(64, 32, (5, 5, 8, 255)), 0, 0)  # a pit: all near black
+    for i, color in enumerate([(60, 140, 60, 255), (70, 150, 65, 255), (65, 145, 60, 255), (20, 50, 20, 255)]):
+        paste(sheet, diamond(64, 32, color), 64 * (i + 1), 0)
+    chips = [ChipInfo(i, 0, (64 * i, 0, 64, 32), "grid", (32, 16), True, 1, [], 1000, str(i)) for i in range(5)]
+    floor = {"category": "floor", "walkable": True, "material": "grass", "family": "grass"}
+    agents = {name: {} for name in ("boundary_agent", "classification_agent", "collision_agent", "entity_agent")}
+    for chip in chips:
+        fields = {"classification_agent": floor, "boundary_agent": {"kind": "floor_tile"},
+                  "collision_agent": {"blocks_movement": False, "height_class": "flat"}}
+        for name, per_chip in _records(**fields).items():
+            agents[name][chip.number] = per_chip[0].model_copy(update={"chip": chip.number})
+    records = merge(chips, agents)
+    catalog, _ = build_catalog(records, {0: Image.fromarray(sheet)}, {0: "s.png"}, "work/catalog_atlas.png")
+    assert records[0].excluded == "void" and len(catalog["tiles"]) == 4
+    outliers = [t for t in catalog["tiles"] if "floor_outlier" in t["tags"]]
+    assert [t["source_ref"] for t in outliers] == ["upload:s.png#4"]
+    assert build_digest(catalog).by_id["floor.grass"].tile_ids == tuple(
+        t["id"] for t in catalog["tiles"] if t not in outliers)
 
 
 def test_quality_gate():
