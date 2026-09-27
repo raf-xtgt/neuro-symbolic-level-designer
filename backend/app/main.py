@@ -10,7 +10,7 @@ from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from starlette.datastructures import UploadFile
 
 from app.asset_packs import BACKEND_DIR, DEFAULT_PACKS_DIR, discover_packs
@@ -175,6 +175,8 @@ def create_app(
                 maps=uploads["maps"],
                 warnings=warnings,
                 planner=planner,
+                source={"spritesheets": [u.original_name for u in uploads["spritesheets"]]}
+                if uploads["spritesheets"] else {"asset_pack": pack.id},
             )
         )
         return LevelCreated(
@@ -188,6 +190,18 @@ def create_app(
         canonical = parse_job_id(job_id)
         job = jobs.get(canonical) if canonical else None
         return JobStatus(**job) if job else _not_found()
+
+    @app.get("/api/levels/{job_id}/bundle.zip", responses={404: {}})
+    def bundle_zip(job_id: str):
+        """Every bundle file of a ``done`` job, as one zip."""
+        canonical = parse_job_id(job_id)
+        data = jobs.bundle_zip(canonical) if canonical else None
+        if data is None:
+            return _not_found()
+        return Response(
+            data, media_type="application/zip",
+            headers={"Content-Disposition": f'attachment; filename="level_{canonical[:8]}.zip"'},
+        )
 
     @app.get("/api/levels/{job_id}/bundle/{file}", responses={404: {}})
     def bundle_file(job_id: str, file: str):

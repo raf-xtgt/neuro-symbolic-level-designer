@@ -8,6 +8,10 @@ import '../game/level/level_source.dart';
 import '../screens/game_screen.dart';
 import 'api/level_api.dart';
 import 'api/models.dart';
+import 'download/download.dart' as download;
+
+/// Starts a browser download of [url]; false when there is no browser.
+typedef DownloadUrl = Future<bool> Function(Uri url, String fileName);
 
 /// Picks files with the given extensions (without dots).
 typedef PickFiles = Future<List<LevelFile>> Function(List<String> extensions);
@@ -94,13 +98,21 @@ enum _FileInput {
 /// Level Designer: prompt + spritesheet source + optional files in, the
 /// 3 pipeline stages and the generated level out, with **Try Out** to play it.
 class LevelDesignerScreen extends StatefulWidget {
-  const LevelDesignerScreen({super.key, this.api, this.pickFiles});
+  const LevelDesignerScreen({
+    super.key,
+    this.api,
+    this.pickFiles,
+    this.download,
+  });
 
   /// Backend client. Defaults to one built from `assets/config.json`.
   final LevelApi? api;
 
   /// File picker. Defaults to `file_picker`; replaced in tests.
   final PickFiles? pickFiles;
+
+  /// Bundle download. Defaults to a browser download; replaced in tests.
+  final DownloadUrl? download;
 
   @override
   State<LevelDesignerScreen> createState() => _LevelDesignerScreenState();
@@ -312,6 +324,20 @@ class _LevelDesignerScreenState extends State<LevelDesignerScreen> {
             GameScreen(source: LevelSource.network(_api!.bundleUrl(job.jobId))),
       ),
     );
+  }
+
+  Future<void> _downloadBundle() async {
+    final jobId = _job!.jobId;
+    final url = _api!.bundleZipUrl(jobId);
+    final started = await (widget.download ?? download.downloadUrl)(
+      url,
+      'level_${jobId.length > 8 ? jobId.substring(0, 8) : jobId}.zip',
+    );
+    if (!started && mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Download the bundle from $url')));
+    }
   }
 
   // -- UI ---------------------------------------------------------------
@@ -656,6 +682,7 @@ class _LevelDesignerScreenState extends State<LevelDesignerScreen> {
                   (r) =>
                       '${r.id}: ${r.purpose}, ${r.size}, '
                       '${r.enemyCount} ${r.enemyCount == 1 ? 'enemy' : 'enemies'}'
+                      '${r.behavior == null ? '' : ' (${r.behavior}, chase ${r.chaseRange} tiles, ${r.stepIntervalMs} ms/step)'}'
                       '${r.description.isEmpty ? '' : ' - ${r.description}'}',
                 )
                 .join('\n'),
@@ -671,6 +698,10 @@ class _LevelDesignerScreenState extends State<LevelDesignerScreen> {
           const SizedBox(height: 8),
           _ValidationBadge(report),
         ],
+        if (summary.verification case final verification?) ...[
+          const SizedBox(height: 16),
+          _VerificationSection(verification),
+        ],
       ],
       const SizedBox(height: 16),
       ElevatedButton.icon(
@@ -679,6 +710,16 @@ class _LevelDesignerScreenState extends State<LevelDesignerScreen> {
         label: const Text('Try Out'),
         style: ElevatedButton.styleFrom(
           padding: const EdgeInsets.symmetric(vertical: 18),
+        ),
+      ),
+      const SizedBox(height: 8),
+      OutlinedButton.icon(
+        key: const Key('download_bundle'),
+        onPressed: _downloadBundle,
+        icon: const Icon(Icons.download),
+        label: const Text('Download bundle (.zip)'),
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 14),
         ),
       ),
     ];
@@ -918,6 +959,69 @@ class _ValidationBadge extends StatelessWidget {
               '${check.name}: ${check.detail}',
               style: const TextStyle(color: Colors.redAccent),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Pipeline 3 verification: each check passed / failed / skipped, the atlas
+/// use and the `dart analyze` result of the generated `level_loader.dart`.
+class _VerificationSection extends StatelessWidget {
+  const _VerificationSection(this.verification);
+
+  final VerificationSummary verification;
+
+  @override
+  Widget build(BuildContext context) {
+    final v = verification;
+    return Column(
+      key: const Key('verification_section'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const _Heading('Verification'),
+        _SummaryLine(
+          'Checks',
+          '${v.checksPassed} of ${v.checksTotal} passed'
+              '${v.checksSkipped == 0 ? '' : ', ${v.checksSkipped} skipped'}',
+        ),
+        if (v.atlasUsePercent case final percent?)
+          _SummaryLine('Atlas use', '$percent% of the 4096 x 4096 web atlas'),
+        if (v.dartAnalyze case final dart?)
+          _SummaryLine('dart analyze', '${dart.status}: ${dart.detail}'),
+        const SizedBox(height: 4),
+        for (final check in v.checks) _VerificationRow(check),
+      ],
+    );
+  }
+}
+
+class _VerificationRow extends StatelessWidget {
+  const _VerificationRow(this.check);
+
+  final VerificationCheck check;
+
+  @override
+  Widget build(BuildContext context) {
+    final (icon, color) = switch (check.status) {
+      'passed' => (Icons.check_circle, Colors.green),
+      'skipped' => (Icons.remove_circle_outline, Colors.white54),
+      _ => (Icons.cancel, Colors.redAccent),
+    };
+    return Padding(
+      key: Key('verification_${check.name}'),
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 16),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              '${check.name} (${check.status}): ${check.detail}',
+              style: TextStyle(color: color == Colors.green ? null : color),
+            ),
+          ),
         ],
       ),
     );

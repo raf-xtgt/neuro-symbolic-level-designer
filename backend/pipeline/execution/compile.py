@@ -14,6 +14,7 @@ Outputs:
     <out>/tileset_1.tsj, <out>/tileset_1.png    (further groups, if any)
     <out>/level.tmj
     <out>/preview_level.png
+    <out>/level_loader.dart                     (Flame integration code, codegen.py)
 """
 from __future__ import annotations
 
@@ -25,6 +26,7 @@ from pathlib import Path
 
 import jsonschema
 
+from pipeline.execution.codegen import write_level_loader
 from pipeline.execution.tileset_compiler import compile_tilesets
 from pipeline.execution.map_compiler import compile_map
 from pipeline.execution.preview_renderer import render_preview
@@ -81,10 +83,13 @@ def _used_catalog_ids(level_plan: dict) -> set[int]:
 # Main compile function (also called from tests)
 # -------------------------------------------------------------------------
 
-def run_compile(plan_path: str, catalog_path: str, out_dir: str, source_root: str | Path | None = None) -> dict:
+def run_compile(
+    plan_path: str, catalog_path: str, out_dir: str, source_root: str | Path | None = None, prompt: str = "",
+) -> dict:
     """
     Full compile pipeline.  Returns a dict with the parsed tmj, the tileset dicts, and the out dir.
     ``source_root``: the folder catalog sources are relative to (default: the repository root).
+    ``prompt``: the design prompt, for the header of the generated ``level_loader.dart``.
     """
     root = Path(source_root) if source_root is not None else _REPO_ROOT
     catalog = _load_json(catalog_path)
@@ -120,6 +125,12 @@ def run_compile(plan_path: str, catalog_path: str, out_dir: str, source_root: st
     render_preview(tmj=tmj, bundle_dir=out_dir, out_path=preview_path)
     print("OK")
 
+    # 4. Flame integration code
+    print("Generating level_loader.dart …", end=" ")
+    categories = {e["type"]: e["category"] for e in catalog.get("entities", [])}
+    write_level_loader(tmj, prompt, categories, out_dir)
+    print("OK")
+
     print(f"\nOutput written to: {os.path.abspath(out_dir)}")
     return {"tmj": tmj, "tilesets": [ts.tsj for ts in tilesets], "out_dir": out_dir}
 
@@ -135,10 +146,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--plan",    required=True, help="Path to level_plan.json")
     parser.add_argument("--catalog", required=True, help="Path to asset_catalog.json")
     parser.add_argument("--out",     required=True, help="Output directory")
+    parser.add_argument("--prompt",  default="", help="Design prompt, for the generated code header")
     args = parser.parse_args(argv)
 
     try:
-        run_compile(args.plan, args.catalog, args.out)
+        run_compile(args.plan, args.catalog, args.out, prompt=args.prompt)
     except Exception as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1

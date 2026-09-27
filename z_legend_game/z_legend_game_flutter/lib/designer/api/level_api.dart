@@ -27,6 +27,9 @@ class LevelApi {
   /// `<apiUrl>/api/levels/<jobId>/bundle/`.
   Uri bundleUrl(String jobId) => _url('/api/levels/$jobId/bundle/');
 
+  /// `<apiUrl>/api/levels/<jobId>/bundle.zip`: every bundle file.
+  Uri bundleZipUrl(String jobId) => _url('/api/levels/$jobId/bundle.zip');
+
   Future<List<AssetPack>> listAssetPacks() async {
     final response = await _send(() => _client.get(_url('/api/asset-packs')));
     return (_decode(response) as List)

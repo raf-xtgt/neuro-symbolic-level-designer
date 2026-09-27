@@ -292,7 +292,7 @@ The validator audits the compiled level using deterministic game-logic checks. T
 
 **Self-healing loop:** failures a new layout can fix go back to `layout_builder` with a new seed (at most 2 per topology). Other failures go back to `topology_agent` with a structured error payload (at most 3 topology attempts). If all attempts fail, the job fails with the last validation report; there is no silent fallback. The placeholder planner remains available as an explicit choice (`planner=placeholder`).
 
-**Not implemented yet:** true WFC with socket constraints (cliffs, water, riverbanks, fences need autotile rules), elevation and ramps, and the LLM Aesthetic Stylist as a separate agent (its weights come from the topology agent's `style_distribution` and room `dressing`).
+**Future work:** true WFC with socket constraints (cliffs, water, riverbanks, fences need autotile rules), elevation and ramps, and the LLM Aesthetic Stylist as a separate agent (its weights come from the topology agent's `style_distribution` and room `dressing`).
 
 **Evaluation:** `backend/eval/pipeline2_report.md` (5 fixed prompts, previews, per-prompt judgement).
 
@@ -346,6 +346,13 @@ flowchart LR
   * Playability validation status.
 
 ---
+
+### 5.5 Implementation (current)
+
+* **Entity mechanics agent** (`backend/pipeline/execution/mechanics.py`): one structured LLM call per level sets zombie behavior per room (`chase_range_tiles` 3 to 8, `step_interval_ms` 250 to 600, `behavior`: `idle_until_near`, `patrol_room`, `guard_exit`). Values are written as Tiled object properties on each `Zombie` (with `room_id` and the room rectangle), so the game and the exported code read the same data. On an LLM error, defaults are used with a warning; the call never fails a level. The LLM never writes code.
+* **Code generator** (`codegen.py`, template `templates/level_loader.dart.j2`, Jinja2): a self-contained `level_loader.dart` per level: metadata, the TMJ loading helper for flame_tiled 3.1.2, typed entity configs, an abstract `LevelEntityFactory` with one method per entity type, isometric object conversion, and `PolygonHitbox` diamonds for blocked cells. The prompt is embedded only as a whitespace-collapsed comment line and an escaped string literal.
+* **Verification engine** (`verification.py`): `summary.json` in every bundle: level metadata, counts, playability, checks (`tmj_parses`, `gids_resolve`, `images_exist`, `atlas_fits`, `objects_on_walkable`, `dart_analyze` in the scratch package `backend/codegen_check/`, skipped when Dart is unavailable), timings, LLM usage per pipeline, file sizes and SHA-256.
+* **Export:** `GET /api/levels/{job_id}/bundle.zip`; the Level Designer shows the checks and a download button.
 
 ## 6. Data Contracts and Schemas
 

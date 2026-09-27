@@ -100,6 +100,12 @@ def test_recorded_grassland_upload_with_the_ai_planner(tmp_path):
     summary = job["summary"]
     assert summary["validation"]["passed"]
     assert summary["ingestion"]["tiles"] > 100 and summary["ingestion"]["llm_usage"]["calls"] >= 40
+    # The entity mechanics agent's recorded answer is on the zombies.
+    assert summary["mechanics"]["source"] == "llm" and not any("entity mechanics" in w for w in summary["warnings"])
+    assert summary["verification"]["checks_passed"] == summary["verification"]["checks_total"]
+    report = client.get(created["bundle_url"] + "summary.json").json()
+    assert report["counts"]["zombies_by_behavior"] and "none" not in report["counts"]["zombies_by_behavior"]
+    assert report["level"]["source"] == {"spritesheets": ["grassland_tiles.png"]}
     tmj = client.get(created["bundle_url"] + "level.tmj").json()
     for tileset in tmj["tilesets"]:
         assert client.get(created["bundle_url"] + tileset["image"]).status_code == 200

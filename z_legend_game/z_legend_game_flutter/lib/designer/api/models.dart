@@ -222,6 +222,7 @@ class JobSummary {
     this.validation,
     this.llmUsage,
     this.ingestion,
+    this.verification,
   });
 
   factory JobSummary.fromJson(Map<String, dynamic> json) {
@@ -231,6 +232,7 @@ class JobSummary {
     final validation = json['validation'] as Map<String, dynamic>?;
     final usage = json['llm_usage'] as Map<String, dynamic>?;
     final ingestion = json['ingestion'] as Map<String, dynamic>?;
+    final verification = json['verification'] as Map<String, dynamic>?;
     return JobSummary(
       mapWidth: size?['width'] as int? ?? 0,
       mapHeight: size?['height'] as int? ?? 0,
@@ -250,6 +252,9 @@ class JobSummary {
       ingestion: ingestion == null
           ? null
           : IngestionSummary.fromJson(ingestion),
+      verification: verification == null
+          ? null
+          : VerificationSummary.fromJson(verification),
     );
   }
 
@@ -270,6 +275,64 @@ class JobSummary {
 
   /// Pipeline 1 facts, for uploaded spritesheets only.
   final IngestionSummary? ingestion;
+
+  /// Pipeline 3 verification engine (`summary.verification`).
+  final VerificationSummary? verification;
+}
+
+/// The verification block of a done job (the full report is `summary.json`).
+class VerificationSummary {
+  const VerificationSummary({
+    required this.checksPassed,
+    required this.checksTotal,
+    this.checksSkipped = 0,
+    this.atlasUsePercent,
+    this.checks = const [],
+  });
+
+  factory VerificationSummary.fromJson(Map<String, dynamic> json) =>
+      VerificationSummary(
+        checksPassed: json['checks_passed'] as int? ?? 0,
+        checksTotal: json['checks_total'] as int? ?? 0,
+        checksSkipped: json['checks_skipped'] as int? ?? 0,
+        atlasUsePercent: (json['atlas_use_percent'] as num?)?.toDouble(),
+        checks: (json['checks'] as List? ?? const [])
+            .map((c) => VerificationCheck.fromJson(c as Map<String, dynamic>))
+            .toList(),
+      );
+
+  final int checksPassed;
+  final int checksTotal;
+  final int checksSkipped;
+  final double? atlasUsePercent;
+  final List<VerificationCheck> checks;
+
+  VerificationCheck? get dartAnalyze {
+    for (final c in checks) {
+      if (c.name == 'dart_analyze') return c;
+    }
+    return null;
+  }
+}
+
+/// One verification check: [status] is `passed`, `failed` or `skipped`.
+class VerificationCheck {
+  const VerificationCheck({
+    required this.name,
+    required this.status,
+    this.detail = '',
+  });
+
+  factory VerificationCheck.fromJson(Map<String, dynamic> json) =>
+      VerificationCheck(
+        name: json['name'] as String,
+        status: json['status'] as String? ?? 'failed',
+        detail: json['detail'] as String? ?? '',
+      );
+
+  final String name;
+  final String status;
+  final String detail;
 }
 
 /// Pipeline 1 summary of an upload job (`summary.ingestion`).
@@ -332,21 +395,35 @@ class RoomSummary {
     required this.size,
     required this.description,
     required this.enemyCount,
+    this.behavior,
+    this.chaseRange,
+    this.stepIntervalMs,
   });
 
-  factory RoomSummary.fromJson(Map<String, dynamic> json) => RoomSummary(
-    id: json['id'] as String,
-    purpose: json['purpose'] as String,
-    size: json['size'] as String,
-    description: json['description'] as String? ?? '',
-    enemyCount: json['enemy_count'] as int? ?? 0,
-  );
+  factory RoomSummary.fromJson(Map<String, dynamic> json) {
+    final mechanics = json['mechanics'] as Map<String, dynamic>?;
+    return RoomSummary(
+      id: json['id'] as String,
+      purpose: json['purpose'] as String,
+      size: json['size'] as String,
+      description: json['description'] as String? ?? '',
+      enemyCount: json['enemy_count'] as int? ?? 0,
+      behavior: mechanics?['behavior'] as String?,
+      chaseRange: mechanics?['chase_range_tiles'] as int?,
+      stepIntervalMs: mechanics?['step_interval_ms'] as int?,
+    );
+  }
 
   final String id;
   final String purpose;
   final String size;
   final String description;
   final int enemyCount;
+
+  /// Zombie behavior from the entity mechanics agent (rooms with enemies).
+  final String? behavior;
+  final int? chaseRange;
+  final int? stepIntervalMs;
 }
 
 /// The Pipeline 2 validator report.

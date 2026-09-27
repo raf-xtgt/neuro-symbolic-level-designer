@@ -1,0 +1,16 @@
+# Scratch package for the Pipeline 3 verification engine: the generated
+# level_loader.dart is copied into lib/, analyzed with `dart analyze`, and
+# removed. Versions match z_legend_game_flutter/pubspec.yaml.
+name: codegen_check
+description: Analyzes generated level_loader.dart files.
+publish_to: none
+version: 0.0.1
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flame: ^1.38.2
+  flame_tiled: ^3.1.2

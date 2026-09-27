@@ -1,0 +1,12 @@
+{
+  "key": "a5f83afc018ae193e77b56cea4d77c4f24447444c2dea01b53dcde384ebb72fd",
+  "model": "gemini-3.5-flash",
+  "schema": "LevelMechanics",
+  "system": "You tune enemy behavior for a 2D isometric action game level. The player walks one tile per step. For every room that has enemies, choose how far away the enemies notice the player (chase_range_tiles, 3 to 8), how fast they walk (step_interval_ms, 250 to 600, lower is faster), and a behavior: idle_until_near (wait in place), patrol_room (walk around the room), guard_exit (stay near the exit; use it for the room that holds the exit). Match the design prompt and each room's purpose: boss rooms are faster and notice earlier, entrance rooms are gentle. Answer only with the JSON object. Use only the room ids you are given.",
+  "prompt": "Design prompt: graveyard with a cabin and a boss arena\nEntity types in the level: ExitTrigger, PlayerSpawn, Zombie\nThe exit is in room r4.\nRooms (id, purpose, enemies, description):\n- r1, entrance, 0 enemies, The rusted iron gates of the cemetery, overgrown with weeds.\n- r3, combat, 1 enemies, A dusty undertaker's cabin filled with wooden crates and firewood.\n- r2, combat, 4 enemies, An overgrown cemetery crowded with crooked gravestones and dead trees.\n- r4, boss, 5 enemies, A grand stone plaza before a ruined mausoleum, guarded by the boss.",
+  "image_count": 0,
+  "temperature": 0.2,
+  "response_text": "{\n  \"rooms\": [\n    {\n      \"room_id\": \"r3\",\n      \"chase_range_tiles\": 4,\n      \"step_interval_ms\": 500,\n      \"behavior\": \"idle_until_near\",\n      \"rationale\": \"A single zombie waits inside the cramped undertaker's cabin, reacting only when the player gets close.\"\n    },\n    {\n      \"room_id\": \"r2\",\n      \"chase_range_tiles\": 5,\n      \"step_interval_ms\": 450,\n      \"behavior\": \"patrol_room\",\n      \"rationale\": \"Zombies wander aimlessly among the crooked gravestones, patrolling the overgrown cemetery.\"\n    },\n    {\n      \"room_id\": \"r4\",\n      \"chase_range_tiles\": 8,\n      \"step_interval_ms\": 300,\n      \"behavior\": \"guard_exit\",\n      \"rationale\": \"The boss and its minions guard the mausoleum exit, reacting instantly and moving very fast to stop the player.\"\n    }\n  ]\n}",
+  "input_tokens": 668,
+  "output_tokens": 528
+}

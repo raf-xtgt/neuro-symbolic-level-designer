@@ -10,6 +10,8 @@ import os
 import pytest
 
 os.environ.setdefault("LLM_MODE", "replay")
+# dart analyze of generated code takes seconds per job; its own tests turn it on.
+os.environ.setdefault("DART_ANALYZE", "off")
 
 
 def pytest_configure(config):

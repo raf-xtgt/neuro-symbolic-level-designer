@@ -11,6 +11,7 @@ import 'package:flutter/widgets.dart' show KeyEventResult;
 
 import 'characters/player_component.dart';
 import 'characters/zombie_component.dart';
+import 'characters/zombie_config.dart';
 import 'iso/iso_math.dart';
 import 'level/level_loader.dart';
 import 'level/level_source.dart';
@@ -115,13 +116,16 @@ class ZLegendGame extends FlameGame
     // After player is available, spawn zombies (they need a player reference).
     final player = _player;
     if (player != null) {
-      for (final (col, row) in _pendingZombieSpawns) {
+      final exit = _exitTrigger;
+      for (final (col, row, config) in _pendingZombieSpawns) {
         final z = ZombieComponent(
           startCol: col,
           startRow: row,
           isoMath: _isoMath!,
           walkability: _walkability!,
           player: player,
+          config: config,
+          exit: exit == null ? null : (exit.col, exit.row),
         );
         _zombies.add(z);
         _world.add(z);
@@ -134,7 +138,7 @@ class ZLegendGame extends FlameGame
     }
   }
 
-  final List<(int, int)> _pendingZombieSpawns = [];
+  final List<(int, int, ZombieConfig)> _pendingZombieSpawns = [];
 
   void _spawnEntities(TiledComponent tiledMap) {
     final objectGroup = tiledMap.tileMap.getLayer<ObjectGroup>('Entities');
@@ -155,7 +159,11 @@ class ZLegendGame extends FlameGame
           _debugMarkers.add(_DebugMarker(col: col, row: row, label: 'P'));
         case 'Zombie':
           _debugMarkers.add(_DebugMarker(col: col, row: row, label: 'Z'));
-          _pendingZombieSpawns.add((col, row));
+          _pendingZombieSpawns.add((
+            col,
+            row,
+            ZombieConfig.fromProperties(obj.properties),
+          ));
         case 'ExitTrigger':
           final exit = ExitTrigger(col: col, row: row, isoMath: _isoMath!);
           _exitTrigger = exit;

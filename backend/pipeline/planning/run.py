@@ -10,6 +10,10 @@ Planners:
     Also writes ``topology_graph.json`` and ``validation_report.json``.
   * ``placeholder``: the temporary seeded planner (``placeholder_planner.py``).
 
+Then the entity mechanics agent (``pipeline/execution/mechanics.py``, one LLM
+call, agentic only; defaults for the placeholder) writes chase range, speed,
+behavior and room onto every ``Zombie`` object of the plan.
+
 Both are seeded by a stable hash of the prompt.
 """
 from __future__ import annotations
@@ -21,6 +25,8 @@ from pathlib import Path
 import jsonschema
 
 from pipeline.errors import StageError
+from pipeline.execution.mechanics import MechanicsResult, apply_to_plan, generate_mechanics
+from pipeline.execution.mechanics import summary as mechanics_summary
 from pipeline.llm.base import LLMConfigError, LLMError, LLMOutputError, LLMProvider, LLMUnavailableError
 from pipeline.planning.graph import PlanningFailed, PlanningOutcome, StepCallback, plan_with_llm
 from pipeline.planning.placeholder_planner import plan_level, seed_from_prompt
@@ -57,7 +63,11 @@ def run_planning(
             plan = plan_level(catalog, seed)
         except ValueError as exc:
             raise StageError("planning_failed", str(exc)) from exc
-        return PlanningResult(_write_plan(plan, work_dir), planner, {"planner": planner})
+        mechanics = MechanicsResult({}, "defaults")
+        apply_to_plan(plan, mechanics)
+        return PlanningResult(
+            _write_plan(plan, work_dir), planner, {"planner": planner, "mechanics": mechanics_summary(mechanics)},
+        )
 
     try:
         if provider is None:
@@ -76,9 +86,25 @@ def run_planning(
     except (LLMUnavailableError, LLMError) as exc:
         raise StageError("llm_unavailable", str(exc)) from None
 
+    rooms = [
+        {"id": r.id, "purpose": r.purpose, "description": r.description, "enemy_count": r.enemy_count}
+        for r in outcome.topology.rooms
+    ]
+    exit_ = next((o for o in outcome.plan["objects"] if o["type"] == "ExitTrigger"), None)
+    mechanics = generate_mechanics(
+        prompt, rooms, sorted({o["type"] for o in outcome.plan["objects"]}), provider,
+        exit_room=outcome.layout.room_at((exit_["col"], exit_["row"])) if exit_ else None,
+    )
+    apply_to_plan(outcome.plan, mechanics, outcome.layout)
+
     files = _write_reports(outcome, work_dir)
+    summary = _summary(planner, outcome, files)
+    summary["mechanics"] = mechanics_summary(mechanics)
+    for room in summary.get("rooms", []):
+        if room["id"] in mechanics.rooms:
+            room["mechanics"] = mechanics.rooms[room["id"]]
     return PlanningResult(
-        _write_plan(outcome.plan, work_dir), planner, _summary(planner, outcome, files), outcome.warnings, files,
+        _write_plan(outcome.plan, work_dir), planner, summary, outcome.warnings + mechanics.warnings, files,
     )
 
 

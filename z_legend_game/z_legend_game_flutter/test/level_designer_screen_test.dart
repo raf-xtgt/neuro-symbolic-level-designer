@@ -110,6 +110,10 @@ class _FakeApi implements LevelApi {
   Uri bundleUrl(String jobId) => baseUrl.resolve('/api/levels/$jobId/bundle/');
 
   @override
+  Uri bundleZipUrl(String jobId) =>
+      baseUrl.resolve('/api/levels/$jobId/bundle.zip');
+
+  @override
   Future<List<AssetPack>> listAssetPacks() async {
     if (offline) throw ApiUnavailableException(baseUrl);
     return const [_pack];
@@ -133,14 +137,19 @@ class _FakeApi implements LevelApi {
   Future<Uint8List> getBundleFile(String jobId, String name) async => _png;
 }
 
-Future<void> _pump(WidgetTester tester, LevelApi api, {PickFiles? pick}) async {
+Future<void> _pump(
+  WidgetTester tester,
+  LevelApi api, {
+  PickFiles? pick,
+  DownloadUrl? download,
+}) async {
   tester.view.physicalSize = const Size(1400, 1000);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
     MaterialApp(
       theme: ThemeData.dark(),
-      home: LevelDesignerScreen(api: api, pickFiles: pick),
+      home: LevelDesignerScreen(api: api, pickFiles: pick, download: download),
     ),
   );
   await tester.pump();
@@ -450,6 +459,127 @@ void main() {
     );
     expect(find.text('AI planner (Gemini)'), findsWidgets);
     expect(find.text('Try Out'), findsOneWidget);
+  });
+
+  testWidgets('verification section, zombie behaviors and bundle download', (
+    tester,
+  ) async {
+    const summary = JobSummary(
+      mapWidth: 30,
+      mapHeight: 32,
+      planner: 'agentic',
+      rooms: [
+        RoomSummary(
+          id: 'r2',
+          purpose: 'combat',
+          size: 'medium',
+          description: 'Graves.',
+          enemyCount: 3,
+          behavior: 'patrol_room',
+          chaseRange: 5,
+          stepIntervalMs: 450,
+        ),
+      ],
+      verification: VerificationSummary(
+        checksPassed: 5,
+        checksTotal: 6,
+        atlasUsePercent: 3.2,
+        checks: [
+          VerificationCheck(
+            name: 'gids_resolve',
+            status: 'passed',
+            detail: 'every GID maps to a tileset tile',
+          ),
+          VerificationCheck(
+            name: 'objects_on_walkable',
+            status: 'failed',
+            detail: 'Zombie at (3, 4) is on a blocking tile',
+          ),
+          VerificationCheck(
+            name: 'dart_analyze',
+            status: 'passed',
+            detail: 'no issues',
+          ),
+        ],
+      ),
+    );
+    final api = _FakeApi(
+      jobs: [
+        _job('done', [
+          StageState.done,
+          StageState.done,
+          StageState.done,
+        ], summary: summary),
+      ],
+    );
+    final downloads = <(Uri, String)>[];
+    await _pump(
+      tester,
+      api,
+      download: (url, name) async {
+        downloads.add((url, name));
+        return true;
+      },
+    );
+    await tester.enterText(find.byKey(const Key('prompt')), 'graveyard');
+    await _tap(tester, find.text('Generate level'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(
+      find.text(
+        'r2: combat, medium, 3 enemies (patrol_room, chase 5 tiles, '
+        '450 ms/step) - Graves.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('verification_section')), findsOneWidget);
+    expect(find.text('5 of 6 passed'), findsOneWidget);
+    expect(find.text('3.2% of the 4096 x 4096 web atlas'), findsOneWidget);
+    expect(find.text('passed: no issues'), findsOneWidget);
+    expect(
+      find.text(
+        'objects_on_walkable (failed): Zombie at (3, 4) is on a blocking tile',
+      ),
+      findsOneWidget,
+    );
+
+    await _tap(tester, find.byKey(const Key('download_bundle')));
+    await tester.pump();
+    expect(downloads, [
+      (
+        Uri.parse('http://localhost:8000/api/levels/abc/bundle.zip'),
+        'level_abc.zip',
+      ),
+    ]);
+    expect(find.text('Download bundle (.zip)'), findsOneWidget);
+  });
+
+  testWidgets('without a browser the download shows the bundle URL', (
+    tester,
+  ) async {
+    final api = _FakeApi(
+      jobs: [
+        _job('done', [
+          StageState.done,
+          StageState.done,
+          StageState.done,
+        ], summary: _summary),
+      ],
+    );
+    await _pump(tester, api, download: (url, name) async => false);
+    await tester.enterText(find.byKey(const Key('prompt')), 'graveyard');
+    await _tap(tester, find.text('Generate level'));
+    await tester.pump();
+    await tester.pump();
+    await _tap(tester, find.byKey(const Key('download_bundle')));
+    await tester.pump();
+    expect(
+      find.text(
+        'Download the bundle from http://localhost:8000/api/levels/abc/bundle.zip',
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('failed validation shows the failing checks', (tester) async {

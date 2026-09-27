@@ -5,9 +5,12 @@ import 'package:flame/components.dart';
 
 import 'character_component.dart';
 import 'player_component.dart';
+import 'zombie_config.dart';
 
-/// Zombie enemy. Chases the player when within 5 tiles, along the shortest
-/// path on the [WalkabilityGrid] (around obstacles, never into them).
+/// Zombie enemy. Chases the player within [ZombieConfig.chaseRange] tiles,
+/// along the shortest path on the [WalkabilityGrid] (around obstacles, never
+/// into them); otherwise idles, patrols its room, or guards the exit
+/// ([ZombieConfig.behavior], from the level's Tiled object properties).
 class ZombieComponent extends CharacterComponent {
   ZombieComponent({
     required super.startCol,
@@ -15,19 +18,26 @@ class ZombieComponent extends CharacterComponent {
     required super.isoMath,
     required super.walkability,
     required this.player,
-  }) : super(
+    this.config = const ZombieConfig(),
+    (int, int)? exit,
+    math.Random? random,
+  }) : _brain = ZombieBrain(
+         config: config,
+         walkability: walkability,
+         exit: exit,
+         random: random ?? math.Random(startCol * 1000 + startRow),
+       ),
+       super(
          imageBaseName: 'characters/zombie',
          jsonBaseName: 'assets/images/characters/zombie',
        );
 
   final PlayerComponent player;
+  final ZombieConfig config;
+  final ZombieBrain _brain;
 
-  /// Speed: one tile per [_stepInterval] seconds.
-  static const double _stepInterval = 0.35;
+  /// Speed: one tile per [ZombieConfig.stepInterval] seconds.
   double _stepTimer = 0;
-
-  /// Chase range in tiles.
-  static const double _chaseRange = 5.0;
 
   @override
   Future<void> onLoad() async {
@@ -51,21 +61,15 @@ class ZombieComponent extends CharacterComponent {
     super.update(dt);
     if (isDead) return;
 
-    final dist = _distanceToPlayer();
-    if (dist > _chaseRange) {
-      playAnimation(CharAnim.idle);
-      return;
-    }
-
-    // Chase the player along a BFS path, recomputed every update (the map
-    // is small), so the zombie follows the player and goes around obstacles.
-    final path = walkability.findPath((col, row), (player.col, player.row));
-    if (path == null || path.length < 2) {
+    // The next cell along a BFS path, recomputed every update (the map is
+    // small), so the zombie follows the player and goes around obstacles.
+    final next = _brain.nextStep((col, row), (player.col, player.row));
+    if (next == null) {
       _stepTimer = 0;
       playAnimation(CharAnim.idle);
       return;
     }
-    final (nextCol, nextRow) = path[1];
+    final (nextCol, nextRow) = next;
     final dcol = nextCol - col;
     final drow = nextRow - row;
 
@@ -76,18 +80,12 @@ class ZombieComponent extends CharacterComponent {
     playAnimation(CharAnim.walk);
 
     _stepTimer += dt;
-    if (_stepTimer >= _stepInterval) {
+    if (_stepTimer >= config.stepInterval) {
       _stepTimer = 0;
       if (isoMath.inBounds(nextCol, nextRow)) {
         setGridPosition(nextCol, nextRow);
       }
     }
-  }
-
-  double _distanceToPlayer() {
-    final dcol = (player.col - col).toDouble();
-    final drow = (player.row - row).toDouble();
-    return math.sqrt(dcol * dcol + drow * drow);
   }
 
   /// Called by the game when the player attacks and this zombie is within range.

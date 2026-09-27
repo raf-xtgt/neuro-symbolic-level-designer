@@ -5,13 +5,16 @@ Jobs run one at a time on a background thread.
 """
 from __future__ import annotations
 
+import io
 import json
 import logging
 import os
 import re
 import shutil
 import threading
+import time
 import uuid
+import zipfile
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
@@ -20,6 +23,8 @@ from pathlib import Path
 
 from pipeline.errors import StageError
 from pipeline.execution.compile import run_compile
+from pipeline.execution.verification import job_block, verify_bundle
+from pipeline.ingestion.pipeline1 import PIPELINE1_VERSION
 from pipeline.ingestion.run import IngestionRequest, LegacyFile, run_ingestion
 from pipeline.planning.pathing import path_check
 from pipeline.llm.base import LLMProvider
@@ -30,11 +35,12 @@ log = logging.getLogger(__name__)
 STAGES = ("ingesting", "planning", "executing")
 # Bundle files that may be served: the map, its preview, the tilesets
 # (tileset.png/.tsj, tileset_1.png/.tsj, ...), the agentic planner's
-# topology graph and validation report, and for uploads the Pipeline 1
-# contact sheet and ingestion report. Everything else is 404.
+# topology graph and validation report, for uploads the Pipeline 1
+# contact sheet and ingestion report, and the Pipeline 3 Flame code and
+# verification report. Everything else is 404.
 BUNDLE_FILE_RE = re.compile(
     r"level\.tmj|preview_level\.png|tileset(_\d+)?\.(png|tsj)|topology_graph\.json|validation_report\.json"
-    r"|contact_sheet\.png|ingestion_report\.json"
+    r"|contact_sheet\.png|ingestion_report\.json|level_loader\.dart|summary\.json"
 )
 
 
@@ -42,7 +48,9 @@ def bundle_media_type(name: str) -> str | None:
     """Content type of an allowed bundle file name, or None if not allowed."""
     if not BUNDLE_FILE_RE.fullmatch(name):
         return None
-    return "image/png" if name.endswith(".png") else "application/json"
+    if name.endswith(".png"):
+        return "image/png"
+    return "text/plain; charset=utf-8" if name.endswith(".dart") else "application/json"
 
 
 @dataclass
@@ -61,6 +69,7 @@ class LevelRequest:
     maps: list[Upload] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     planner: str = DEFAULT_PLANNER
+    source: dict = field(default_factory=dict)  # {"asset_pack": id} or {"spritesheets": [names]}
 
 
 def _now() -> str:
@@ -113,6 +122,18 @@ class JobManager:
         path = self._job_dir(job_id) / "bundle" / name
         return path if path.is_file() else None
 
+    def bundle_zip(self, job_id: str) -> bytes | None:
+        """A zip of the allowed bundle files of a ``done`` job, else None."""
+        job = self.get(job_id)
+        if job is None or job["status"] != "done":
+            return None
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+            for path in sorted((self._job_dir(job_id) / "bundle").iterdir()):
+                if path.is_file() and bundle_media_type(path.name) is not None:
+                    archive.write(path, path.name)
+        return buffer.getvalue()
+
     # -- create ------------------------------------------------------------
 
     def create(self, request: LevelRequest) -> str:
@@ -151,29 +172,36 @@ class JobManager:
             "error": None,
             "summary": None,
             "planner": request.planner,
+            "source": request.source,
             "ingestion_steps": [],
             "planning_steps": [],
         }
         (job_dir / "job.json").write_text(json.dumps(job, indent=2), encoding="utf-8")
-        self._executor.submit(self._run, job_id, request.prompt, ingestion, request.planner)
+        self._executor.submit(self._run, job_id, request.prompt, ingestion, request.planner, request.source)
         return job_id
 
     # -- run ---------------------------------------------------------------
 
-    def _run(self, job_id: str, prompt: str, ingestion: IngestionRequest, planner: str) -> None:
+    def _run(
+        self, job_id: str, prompt: str, ingestion: IngestionRequest, planner: str, source: dict | None = None,
+    ) -> None:
         job_dir = self._job_dir(job_id)
         work, bundle = job_dir / "work", job_dir / "bundle"
         stages = {s: "pending" for s in STAGES}
         stage = STAGES[0]
+        started: dict[str, float] = {}
+        timings: dict[str, float] = {}
 
         def start(name: str) -> None:
             nonlocal stage
             stage = name
             stages[name] = "running"
+            started[name] = time.monotonic()
             self._update(job_id, status=name, stages=stages)
 
         def finish(name: str) -> None:
             stages[name] = "done"
+            timings[name] = round(time.monotonic() - started[name], 2)
             self._update(job_id, stages=stages)
 
         try:
@@ -202,6 +230,7 @@ class JobManager:
             try:
                 run_compile(
                     str(planning.plan_path), str(ingested.catalog_path), str(bundle), source_root=ingested.source_root,
+                    prompt=prompt,
                 )
             except StageError:
                 raise
@@ -209,12 +238,27 @@ class JobManager:
                 raise StageError("execution_failed", str(exc)) from exc
             for path in planning.extra_files:
                 shutil.copyfile(path, bundle / path.name)
-            finish("executing")
 
             summary = _summarize(planning.plan_path, ingested.catalog_path, ingested.legacy_files)
             summary.update(planning.summary)
             if ingested.summary is not None:
                 summary["ingestion"] = ingested.summary
+            verify_start = time.monotonic()
+            report = verify_bundle(
+                bundle,
+                level={"job_id": job_id, "prompt": prompt, "planner": planner, "source": source or {}},
+                playability=_playability(summary),
+                timings_s={**timings, "executing": round(time.monotonic() - started["executing"], 2)},
+                llm_usage={
+                    "ingestion": (ingested.summary or {}).get("llm_usage", {}),
+                    "planning": planning.summary.get("llm_usage", {}),
+                    "mechanics": planning.summary.get("mechanics", {}).get("llm_usage", {}),
+                },
+                versions={"pipeline1": PIPELINE1_VERSION},
+            )
+            summary["verification"] = job_block(report)
+            summary["verification"]["seconds"] = round(time.monotonic() - verify_start, 2)
+            finish("executing")
             summary["warnings"] = self.get(job_id)["warnings"]
             self._update(job_id, status="done", summary=summary)
         except Exception as exc:
@@ -231,6 +275,19 @@ class JobManager:
                 error = {"code": "internal_error", "message": str(exc)}
             stages[stage] = "failed"
             self._update(job_id, status="failed", stages=stages, error=error, summary=summary)
+
+
+def _playability(summary: dict) -> dict:
+    validation = summary.get("validation")
+    checks = {c["name"]: c["passed"] for c in (validation or {}).get("checks", [])}
+    path = summary["path_check"]
+    return {
+        "validation_passed": validation["passed"] if validation else path["path_found"],
+        "validator": "pipeline2" if validation else "path_check",
+        "path_found": path["path_found"],
+        "path_length": path["path_length"],
+        "rooms_reachable": checks.get("rooms_reachable"),
+    }
 
 
 def _summarize(plan_path: Path, catalog_path: Path, legacy_files: list[dict]) -> dict:

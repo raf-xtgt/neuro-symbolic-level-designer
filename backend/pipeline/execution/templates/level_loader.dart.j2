@@ -1,0 +1,263 @@
+// GENERATED CODE - DO NOT EDIT BY HAND.
+//
+// Level loader for a generated level (neuro-symbolic level designer,
+// Pipeline 3 template-assisted code generator, ARCHITECTURE.md 5.3).
+//
+// Prompt:            {{ prompt_line }}
+// Generator version: {{ generator_version }}
+// Map size:          {{ map_width }} x {{ map_height }} tiles
+// Tile size:         {{ tile_width }} x {{ tile_height }} px (isometric)
+// Entities:          {{ entity_counts_line }}
+//
+// Depends only on flame, flame_tiled 3.1.x and flutter. Put the bundle files
+// (level.tmj and the tileset images) in one asset folder, pass its path as
+// `prefix`, and implement [LevelEntityFactory] to spawn your own components:
+//
+//   world.add(GeneratedLevel(
+//     entityFactory: MyFactory(),
+//     prefix: 'assets/levels/my_level/',
+//   ));
+library;
+
+import 'dart:convert';
+
+import 'package:flame/cache.dart';
+import 'package:flame/collisions.dart';
+import 'package:flame/components.dart';
+import 'package:flame_tiled/flame_tiled.dart';
+import 'package:flutter/services.dart';
+
+/// Level metadata.
+abstract final class LevelInfo {
+  static const String mapFile = 'level.tmj';
+  static const String prompt = {{ prompt_dart }};
+  static const String generatorVersion = '{{ generator_version }}';
+  static const int mapWidth = {{ map_width }};
+  static const int mapHeight = {{ map_height }};
+  static const double tileWidth = {{ tile_width }};
+  static const double tileHeight = {{ tile_height }};
+  static const Map<String, int> entityCounts = {
+{%- for type, count in entity_counts %}
+    '{{ type }}': {{ count }},
+{%- endfor %}
+  };
+}
+{% for config in configs %}
+/// Configuration of a `{{ config.type }}` object, from its Tiled properties.
+class {{ config.class_name }} {
+  const {{ config.class_name }}({
+{%- for f in config.fields %}
+    this.{{ f.dart_name }} = {{ f.default }},
+{%- endfor %}
+  });
+
+  factory {{ config.class_name }}.fromProperties(CustomProperties properties) {
+    return {{ config.class_name }}(
+{%- for f in config.fields %}
+      {{ f.dart_name }}: _{{ f.kind }}Property(properties, '{{ f.name }}', {{ f.default }}),
+{%- endfor %}
+    );
+  }
+{% for f in config.fields %}
+  /// Tiled property `{{ f.name }}`.
+  final {{ f.dart_type }} {{ f.dart_name }};
+{% endfor -%}
+}
+{% endfor %}
+/// Spawns the components of this level's entities. Return null to skip one.
+abstract class LevelEntityFactory {
+{%- for e in entities %}
+  Component? spawn{{ e.type }}(Vector2 position{% if e.config %}, {{ e.config }} config{% endif %});
+{%- endfor %}
+}
+
+/// The level: the map, one component per entity, and a passive diamond
+/// [PolygonHitbox] on every blocked cell of the `Objects` layer.
+class GeneratedLevel extends PositionComponent with HasGameReference {
+  GeneratedLevel({
+    required this.entityFactory,
+    this.prefix = '',
+    AssetBundle? bundle,
+  }) : bundle = bundle ?? rootBundle;
+
+  final LevelEntityFactory entityFactory;
+
+  /// Folder of the bundle files, for example `assets/levels/my_level/`.
+  final String prefix;
+  final AssetBundle bundle;
+
+  /// The loaded map (after [onLoad]).
+  late final TiledComponent tiled;
+
+  @override
+  Future<void> onLoad() async {
+    tiled = await loadLevelMap(prefix: prefix, bundle: bundle);
+    await add(tiled);
+    final map = tiled.tileMap.map;
+    _addHitboxes(map);
+    await _spawnEntities(map);
+  }
+
+  /// Tiled isometric object coordinates (both axes in tile-height units) to
+  /// the grid cell (col, row).
+  static (int, int) objectToGrid(double x, double y) =>
+      ((x / LevelInfo.tileHeight).floor(), (y / LevelInfo.tileHeight).floor());
+
+  /// Center of cell (col, row) where flame_tiled draws it.
+  static Vector2 gridToWorldCenter(int col, int row) => Vector2(
+    (col - row) * LevelInfo.tileWidth / 2 +
+        LevelInfo.mapHeight * LevelInfo.tileWidth / 2,
+    (col + row) * LevelInfo.tileHeight / 2 + LevelInfo.tileHeight / 2,
+  );
+
+  Future<void> _spawnEntities(TiledMap map) async {
+    for (final layer in map.layers) {
+      if (layer is! ObjectGroup) continue;
+      for (final object in layer.objects) {
+        final (col, row) = objectToGrid(object.x, object.y);
+        final position = gridToWorldCenter(col, row);
+        final Component? component = switch (object.type) {
+{%- for e in entities %}
+          '{{ e.type }}' => entityFactory.spawn{{ e.type }}(position{% if e.config %}, {{ e.config }}.fromProperties(object.properties){% endif %}),
+{%- endfor %}
+          _ => null,
+        };
+        if (component != null) await add(component);
+      }
+    }
+  }
+
+  void _addHitboxes(TiledMap map) {
+    const w = LevelInfo.tileWidth;
+    const h = LevelInfo.tileHeight;
+    for (final layer in map.layers) {
+      if (layer is! TileLayer || layer.name != 'Objects') continue;
+      final data = layer.tileData;
+      if (data == null) continue;
+      for (var row = 0; row < data.length; row++) {
+        for (var col = 0; col < data[row].length; col++) {
+          final gid = data[row][col].tile;
+          if (gid == 0) continue;
+          final tile = map.tileByGid(gid);
+          if (tile == null) continue;
+          if (tile.properties.getValue<bool>('walkable') ?? true) continue;
+          final center = gridToWorldCenter(col, row);
+          add(
+            PolygonHitbox([
+              Vector2(w / 2, 0),
+              Vector2(w, h / 2),
+              Vector2(w / 2, h),
+              Vector2(0, h / 2),
+            ], position: center - Vector2(w / 2, h / 2))
+              ..collisionType = CollisionType.passive,
+          );
+        }
+      }
+    }
+  }
+}
+
+/// Loads [LevelInfo.mapFile] from `prefix` in [bundle] as a [TiledComponent].
+///
+/// flame_tiled 3.1.2 `TiledComponent.load` only parses TMX, so the JSON map
+/// is parsed with `TileMapParser.parseJson` after [normalizeForTiled].
+Future<TiledComponent> loadLevelMap({
+  String prefix = '',
+  AssetBundle? bundle,
+}) async {
+  final source = bundle ?? rootBundle;
+  final contents = await source.loadString('$prefix${LevelInfo.mapFile}');
+  final map = TileMapParser.parseJson(normalizeForTiled(contents));
+  final renderable = await RenderableTiledMap.fromTiledMap(
+    map,
+    Vector2(map.tileWidth.toDouble(), map.tileHeight.toDouble()),
+    images: Images(prefix: prefix, bundle: source),
+    bundle: source,
+  );
+  return TiledComponent(renderable);
+}
+
+/// Reshapes a TMJ map into what tiled 0.11.1's JSON parser (pinned by
+/// flame_tiled 3.1.2) reads: `tileset` instead of `tilesets`, `object`
+/// instead of `objects`, images as a list of `{source, width, height}`,
+/// `tileoffset` / `grid` / tile `objectgroup` as lists, and `ellipse` /
+/// `point` on every object.
+String normalizeForTiled(String contents) {
+  final json = jsonDecode(contents) as Map<String, dynamic>;
+
+  void wrapImage(Map<String, dynamic> m) {
+    final image = m['image'];
+    if (image is String) {
+      m['image'] = [
+        {'source': image, 'width': m['imagewidth'], 'height': m['imageheight']},
+      ];
+    }
+  }
+
+  void normalizeObjects(Map<String, dynamic> group) {
+    final objects = group['objects'] as List<dynamic>?;
+    if (objects == null) return;
+    for (final obj in objects.cast<Map<String, dynamic>>()) {
+      obj.putIfAbsent('ellipse', () => false);
+      obj.putIfAbsent('point', () => false);
+    }
+    group['object'] = objects;
+  }
+
+  final tilesets = (json['tilesets'] as List<dynamic>? ?? const [])
+      .cast<Map<String, dynamic>>();
+  for (final tileset in tilesets) {
+    wrapImage(tileset);
+    for (final key in const ['tileoffset', 'grid']) {
+      if (tileset[key] is Map) tileset[key] = [tileset[key]];
+    }
+    final tiles = tileset['tiles'] as List<dynamic>? ?? const [];
+    for (final tile in tiles.cast<Map<String, dynamic>>()) {
+      wrapImage(tile);
+      final group = tile['objectgroup'];
+      if (group is Map<String, dynamic>) {
+        normalizeObjects(group);
+        tile['objectgroup'] = [group];
+      }
+    }
+  }
+  json['tileset'] = tilesets;
+
+  void visit(List<dynamic>? layers) {
+    for (final layer in layers ?? const <dynamic>[]) {
+      final l = layer as Map<String, dynamic>;
+      if (l['type'] == 'objectgroup') normalizeObjects(l);
+      if (l['type'] == 'imagelayer') wrapImage(l);
+      visit(l['layers'] as List<dynamic>?);
+    }
+  }
+
+  visit(json['layers'] as List<dynamic>?);
+  return jsonEncode(json);
+}
+{%- if kinds %}
+
+String? _rawProperty(CustomProperties properties, String name) =>
+    properties.byName[name]?.value.toString();
+{%- endif %}
+{%- if 'int' in kinds %}
+
+int _intProperty(CustomProperties properties, String name, int fallback) =>
+    int.tryParse(_rawProperty(properties, name) ?? '') ?? fallback;
+{%- endif %}
+{%- if 'double' in kinds %}
+
+double _doubleProperty(
+  CustomProperties properties,
+  String name,
+  double fallback,
+) => double.tryParse(_rawProperty(properties, name) ?? '') ?? fallback;
+{%- endif %}
+{%- if 'string' in kinds %}
+
+String _stringProperty(
+  CustomProperties properties,
+  String name,
+  String fallback,
+) => _rawProperty(properties, name) ?? fallback;
+{%- endif %}

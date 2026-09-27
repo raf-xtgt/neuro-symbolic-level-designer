@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:z_legend_game_flutter/game/characters/character_component.dart';
+import 'package:z_legend_game_flutter/game/characters/zombie_config.dart';
 import 'package:z_legend_game_flutter/game/level/object_sprites.dart';
 import 'package:z_legend_game_flutter/game/z_legend_game.dart';
 
@@ -53,6 +54,17 @@ void main() {
       await widgetTester.sendKeyUpEvent(LogicalKeyboardKey.keyS);
       await widgetTester.pump();
       expect((player.col, player.row), (3, 6));
+    },
+  );
+
+  tester.testGameWidget(
+    'a zombie without mechanics properties uses the defaults',
+    setUp: (game, _) => waitForLevel(game),
+    verify: (game, _) async {
+      final config = game.zombiesForTest.single.config;
+      expect(config.chaseRange, ZombieConfig.defaultChaseRange);
+      expect(config.stepIntervalMs, ZombieConfig.defaultStepIntervalMs);
+      expect(config.behavior, ZombieBehavior.idleUntilNear);
     },
   );
 
