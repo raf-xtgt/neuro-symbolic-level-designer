@@ -184,6 +184,26 @@ Four specialized agents analyze the sliced graphics in parallel. To eliminate pr
 
 ---
 
+### 3.4 Implementation (current)
+
+`backend/pipeline/ingestion/` (`pipeline1.py` orchestrates; agents in `agents/`).
+
+| Step | Kind | What it does |
+|---|---|---|
+| Pre-processor | deterministic | Detects the base diamond (64 x 32, 128 x 64, 256 x 128, 32 x 16) and scales the sheet to 64 x 32; contour slicing with a grid fallback; drops noise, merges duplicates; anchor, footprint, and collision polygon estimates; contact sheets of up to 32 labeled chips. |
+| Tile Boundary Agent | hybrid (vision) | `kind` (floor tile, single object, multi-tile part, fragment, noise) and an anchor check; the deterministic anchor is kept unless the agent rejects it. |
+| Tile Classification Agent | vision | category, walkable, material, family, connector (edge pieces that need matching neighbors), description. |
+| Collision and Physics Agent | hybrid (vision) | Polygon from the opaque base (OpenCV); the agent sets blocking, projectile blocking, height class. |
+| Entity and Prop Agent | vision | Flags characters (excluded, section 1.3), interactive props, editor markers. |
+| Asset Harmonizer | deterministic + LLM | Merges records into the 6.1 catalog, excludes noise, fragments, characters, markers, multi-tile parts, and non-diamond floors; 4 conflict rules; LLM arbitration only for conflicting chips; family normalization; quality gate (`ingestion_no_floor`). |
+
+* The agents run in parallel over the batches (`INGESTION_MAX_CONCURRENCY`, default 6; vision thinking level `LLM_THINKING_LEVEL_VISION`, default `low`).
+* A matching legacy `.tsj`/`.tsx` tileset is ground truth: its grid replaces slicing and its properties override the agents.
+* Results are cached by sheet bytes, legacy files, and the pipeline version. A cache hit makes no LLM call.
+* Connectors get the tag `autotile_required`; Pipeline 2 does not place them until autotile rules exist.
+
+**Evaluation** (`backend/eval/pipeline1_report.md`, `grassland_tiles.png` against the Flare answer key): chip recall 79%, category accuracy 98%, walkable accuracy 100%, connector precision 100% and recall 41%, object anchor error median 5 px. The anchor rule and two prompt wordings were tuned on this sheet (disclosed in the report). Cold ingestion of the full atlas: 41 LLM calls, about 70 s; cached: no calls.
+
 ## 4. Pipeline 2: Level Design Planning Pipeline (Neuro-Symbolic)
 
 The Level Design Planning Pipeline synthesizes the spatial layout of the level from `asset_catalog.json` and the user design prompt. 
@@ -354,7 +374,8 @@ The Data Ingestion Pipeline outputs this contract.
         "properties": {
           "id": { "type": "integer" },
           "name": { "type": "string" },
-          "source": { "type": "string", "description": "Spritesheet path, relative to the repository root" },
+          "source": { "type": "string", "description": "Spritesheet path, relative to the repository root (asset packs) or to the job folder (uploads)" },
+          "description": { "type": "string", "description": "Short description of what the tile shows (Pipeline 1)" },
           "category": { "enum": ["floor", "wall", "ramp", "obstacle", "decoration", "water", "hazard"] },
           "walkable": { "type": "boolean" },
           "material": { "type": "string", "example": "grass" },

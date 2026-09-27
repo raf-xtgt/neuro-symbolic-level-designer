@@ -132,24 +132,31 @@ def build_digest(catalog: dict) -> CatalogDigest:
         category = tiles[0]["category"]
         walkable = all(t["walkable"] for t in tiles)
         tall = any("tall" in t.get("tags", []) for t in tiles)
+        example = next((t["description"] for t in tiles if t.get("description")), None)
         groups.append(TileGroup(
             id=gid,
             category=category,
             walkable=walkable,
             tall=tall,
             tile_ids=tuple(t["id"] for t in tiles),
-            description=_describe(gid, category, len(tiles), walkable, tall),
+            description=_describe(gid, category, len(tiles), walkable, tall, example),
         ))
     return CatalogDigest(tuple(groups))
 
 
-def _describe(gid: str, category: str, count: int, walkable: bool, tall: bool) -> str:
+def _describe(
+    gid: str, category: str, count: int, walkable: bool, tall: bool, example: str | None = None,
+) -> str:
+    """``example``: a tile description from Pipeline 1, used for families not listed above."""
     family = gid.split(".", 1)[1]
     if category == "floor":
         noun = _MATERIAL_NOUNS.get(family, f"{family.replace('_', ' ')} floor")
-        return f"{gid}: {count} {noun} floor variants, walkable"
+        text = f"{gid}: {count} {noun} floor variants, walkable"
+        return text if family in _MATERIAL_NOUNS or not example else f"{text} (for example: {example})"
     noun = _FAMILY_NOUNS.get(family, f"{family.replace('_', ' ')} {category}s")
     parts = [f"{gid}: {count} {noun}", "walkable" if walkable else "blocks movement"]
+    if example and family not in _FAMILY_NOUNS:
+        parts.append(f"for example: {example}")
     if tall:
         parts.append("tall")
     return ", ".join(parts)

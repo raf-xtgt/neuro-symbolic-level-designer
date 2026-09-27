@@ -55,6 +55,8 @@ class LevelLoader {
   ///   (tall sprites) fails to parse. Wrap them in a list.
   /// - `ellipse` and `point` are required on every object, but Tiled only
   ///   writes them when true. Default them to false.
+  /// - a tile's collision shapes (`objectgroup`, written for uploaded sheets)
+  ///   are read as a list of child objects too, with the same object rules.
   static String _normalizeForTiled(String contents) {
     final json = jsonDecode(contents) as Map<String, dynamic>;
 
@@ -71,6 +73,16 @@ class LevelLoader {
       }
     }
 
+    void normalizeObjects(Map<String, dynamic> group) {
+      final objects = group['objects'] as List<dynamic>?;
+      if (objects == null) return;
+      for (final obj in objects.cast<Map<String, dynamic>>()) {
+        obj.putIfAbsent('ellipse', () => false);
+        obj.putIfAbsent('point', () => false);
+      }
+      group['object'] = objects;
+    }
+
     final tilesets = (json['tilesets'] as List<dynamic>? ?? const [])
         .cast<Map<String, dynamic>>();
     for (final tileset in tilesets) {
@@ -79,21 +91,21 @@ class LevelLoader {
         if (tileset[key] is Map) tileset[key] = [tileset[key]];
       }
       final tiles = tileset['tiles'] as List<dynamic>? ?? const [];
-      tiles.cast<Map<String, dynamic>>().forEach(wrapImage);
+      for (final tile in tiles.cast<Map<String, dynamic>>()) {
+        wrapImage(tile);
+        final group = tile['objectgroup'];
+        if (group is Map<String, dynamic>) {
+          normalizeObjects(group);
+          tile['objectgroup'] = [group];
+        }
+      }
     }
     json['tileset'] = tilesets;
 
     void visit(List<dynamic>? layers) {
       for (final layer in layers ?? const <dynamic>[]) {
         final l = layer as Map<String, dynamic>;
-        if (l['type'] == 'objectgroup' && l['objects'] != null) {
-          final objects = l['objects'] as List<dynamic>;
-          for (final obj in objects.cast<Map<String, dynamic>>()) {
-            obj.putIfAbsent('ellipse', () => false);
-            obj.putIfAbsent('point', () => false);
-          }
-          l['object'] = objects;
-        }
+        if (l['type'] == 'objectgroup') normalizeObjects(l);
         if (l['type'] == 'imagelayer') wrapImage(l);
         visit(l['layers'] as List<dynamic>?);
       }

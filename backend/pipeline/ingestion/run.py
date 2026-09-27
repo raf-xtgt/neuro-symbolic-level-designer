@@ -5,8 +5,12 @@ Input:  an IngestionRequest (asset pack catalog and/or uploaded files).
 Output: ``<work_dir>/asset_catalog.json`` plus a summary of the optional
         tilesets and maps.
 
-Pipeline 1 is not implemented: uploaded spritesheets fail the stage with
-``ingestion_not_implemented``. An asset pack supplies a pre-built catalog.
+* Asset pack: the pack's pre-built catalog (sources relative to the
+  repository root).
+* Uploaded spritesheets: Pipeline 1 (``pipeline1.py``): pre-processor,
+  analysis agents, harmonizer. Uploaded sheets and legacy tilesets and maps
+  are combined into one catalog, with sources relative to the job folder
+  (``source_root``).
 """
 from __future__ import annotations
 
@@ -17,6 +21,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from pipeline.errors import StageError
+from pipeline.ingestion.pipeline1 import StepCallback, Upload, run_pipeline1
+from pipeline.llm.base import LLMConfigError, LLMError, LLMOutputError, LLMProvider
 
 
 @dataclass
@@ -28,7 +34,7 @@ class LegacyFile:
 @dataclass
 class IngestionRequest:
     pack_catalog: Path | None = None
-    spritesheets: list[Path] = field(default_factory=list)
+    spritesheets: list[LegacyFile] = field(default_factory=list)
     tilesets: list[LegacyFile] = field(default_factory=list)
     maps: list[LegacyFile] = field(default_factory=list)
 
@@ -37,6 +43,10 @@ class IngestionRequest:
 class IngestionResult:
     catalog_path: Path
     legacy_files: list[dict]
+    source_root: Path | None = None  # None: catalog sources are relative to the repository root
+    summary: dict | None = None  # Pipeline 1 summary (uploads only)
+    extra_files: list[Path] = field(default_factory=list)  # to serve with the bundle
+    warnings: list[str] = field(default_factory=list)
 
 
 def _describe_tileset(path: Path) -> dict:
@@ -66,7 +76,7 @@ def _describe_map(path: Path) -> dict:
 
 
 def describe_legacy_files(request: IngestionRequest) -> list[dict]:
-    """Parses the optional tilesets and maps. Later stages do not use them yet."""
+    """Short summary of the optional tilesets and maps (the job summary)."""
     info = [
         {"kind": "tileset", "file_name": f.original_name, **_describe_tileset(f.path)}
         for f in request.tilesets
@@ -78,13 +88,39 @@ def describe_legacy_files(request: IngestionRequest) -> list[dict]:
     return info
 
 
-def run_ingestion(request: IngestionRequest, work_dir: Path) -> IngestionResult:
+def run_ingestion(
+    request: IngestionRequest,
+    work_dir: Path,
+    job_dir: Path | None = None,
+    provider: LLMProvider | None = None,
+    on_step: StepCallback | None = None,
+    cache_dir: Path | None = None,
+) -> IngestionResult:
     legacy = describe_legacy_files(request)
     if request.spritesheets:
-        raise StageError(
-            "ingestion_not_implemented",
-            "Pipeline 1 (spritesheet ingestion) is not implemented yet. "
-            "Use a built-in asset pack instead of uploading spritesheets.",
+        job_dir = job_dir or work_dir.parent
+
+        def upload(f: LegacyFile) -> Upload:
+            return Upload(f.path, f.original_name)
+
+        try:
+            result = run_pipeline1(
+                [upload(f) for f in request.spritesheets], [upload(f) for f in request.tilesets],
+                [upload(f) for f in request.maps], job_dir, work_dir, provider, on_step, cache_dir,
+            )
+        except LLMConfigError as exc:
+            raise StageError("llm_config", str(exc)) from None
+        except LLMOutputError as exc:
+            raise StageError("llm_output_invalid", str(exc)) from None
+        except LLMError as exc:
+            raise StageError("llm_unavailable", str(exc)) from None
+        return IngestionResult(
+            catalog_path=result.catalog_path,
+            legacy_files=legacy,
+            source_root=job_dir,
+            summary=result.summary,
+            extra_files=[result.contact_sheet_path, result.report_path],
+            warnings=result.warnings,
         )
     if request.pack_catalog is None:
         raise StageError("no_spritesheet_source", "No spritesheet source was given.")

@@ -53,6 +53,14 @@ class PlanningStep(BaseModel):
     message: str
 
 
+class IngestionStep(BaseModel):
+    node: str
+    status: Literal["running", "done", "failed", "cached"]
+    message: str
+    done: int | None = None
+    total: int | None = None
+
+
 class JobStatus(BaseModel):
     job_id: str
     status: JobStatusName
@@ -63,4 +71,5 @@ class JobStatus(BaseModel):
     error: JobError | None = None
     summary: dict[str, Any] | None = None
     planner: str | None = None
+    ingestion_steps: list[IngestionStep] = []
     planning_steps: list[PlanningStep] = []

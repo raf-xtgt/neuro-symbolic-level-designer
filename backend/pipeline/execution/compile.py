@@ -53,13 +53,14 @@ def _validate(instance: dict, schema_name: str) -> None:
     jsonschema.validate(instance=instance, schema=schema)
 
 
-def _resolve_source(source: str) -> str:
+def _resolve_source(source: str, root: Path = _REPO_ROOT) -> str:
     """
-    Resolve a catalog tile ``source``. Values are relative to the repository
-    root (``neuro-symbolic-level-designer/``); absolute paths are used as-is.
+    Resolve a catalog tile ``source``. Values are relative to ``root``: the
+    repository root (``neuro-symbolic-level-designer/``) for asset packs, the
+    job folder for uploaded spritesheets. Absolute paths are used as-is.
     """
     p = Path(source)
-    resolved = p if p.is_absolute() else _REPO_ROOT / p
+    resolved = p if p.is_absolute() else root / p
     if not resolved.exists():
         raise FileNotFoundError(
             f"Cannot find source image '{source}'. Resolved to: {resolved}"
@@ -80,10 +81,12 @@ def _used_catalog_ids(level_plan: dict) -> set[int]:
 # Main compile function (also called from tests)
 # -------------------------------------------------------------------------
 
-def run_compile(plan_path: str, catalog_path: str, out_dir: str) -> dict:
+def run_compile(plan_path: str, catalog_path: str, out_dir: str, source_root: str | Path | None = None) -> dict:
     """
     Full compile pipeline.  Returns a dict with the parsed tmj, the tileset dicts, and the out dir.
+    ``source_root``: the folder catalog sources are relative to (default: the repository root).
     """
+    root = Path(source_root) if source_root is not None else _REPO_ROOT
     catalog = _load_json(catalog_path)
     level_plan = _load_json(plan_path)
 
@@ -102,7 +105,7 @@ def run_compile(plan_path: str, catalog_path: str, out_dir: str) -> dict:
         catalog=catalog,
         used_ids=_used_catalog_ids(level_plan),
         out_dir=out_dir,
-        source_resolver=_resolve_source,
+        source_resolver=lambda source: _resolve_source(source, root),
     )
     print(f"OK ({len(tilesets)})")
 

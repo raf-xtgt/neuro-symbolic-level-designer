@@ -234,15 +234,86 @@ void main() {
     await tester.pump(const Duration(seconds: 2));
   });
 
-  testWidgets('ingestion_not_implemented shows the upload message', (
+  testWidgets('upload shows ingestion sub-steps, contact sheet and summary', (
     tester,
   ) async {
+    const steps = [
+      IngestionStep(
+        node: 'preprocess',
+        status: 'done',
+        message: '307 chips (tile size 64 x 32)',
+      ),
+      IngestionStep(
+        node: 'classification_agent',
+        status: 'running',
+        message: '3 of 10 batches',
+        done: 3,
+        total: 10,
+      ),
+    ];
+    const done = [
+      IngestionStep(
+        node: 'preprocess',
+        status: 'done',
+        message: '307 chips (tile size 64 x 32)',
+      ),
+      IngestionStep(
+        node: 'classification_agent',
+        status: 'done',
+        message: '10 of 10 batches',
+        done: 10,
+        total: 10,
+      ),
+      IngestionStep(
+        node: 'quality_gate',
+        status: 'done',
+        message: 'floor families: grass (16)',
+      ),
+    ];
+    const ingestion = IngestionSummary(
+      cached: false,
+      chips: 307,
+      tiles: 175,
+      tilesByCategory: {'floor': 61, 'obstacle': 60},
+      tilesByFamily: {'grass': 20, 'stone_path': 16},
+      exclusions: {'fragment': 50},
+      conflicts: 3,
+      tileSizes: ['sheet.png: 64 x 32'],
+      llmUsage: LlmUsage(
+        calls: 41,
+        inputTokens: 110000,
+        outputTokens: 62000,
+        latencyMs: 357000,
+      ),
+    );
     final api = _FakeApi(
       jobs: [
-        _job(
-          'failed',
-          [StageState.failed, StageState.pending, StageState.pending],
-          errorCode: 'ingestion_not_implemented',
+        JobStatus(
+          jobId: 'abc',
+          status: 'ingesting',
+          stages: const {
+            'ingesting': StageState.running,
+            'planning': StageState.pending,
+            'executing': StageState.pending,
+          },
+          warnings: const [],
+          ingestionSteps: steps,
+        ),
+        JobStatus(
+          jobId: 'abc',
+          status: 'done',
+          stages: const {
+            'ingesting': StageState.done,
+            'planning': StageState.done,
+            'executing': StageState.done,
+          },
+          warnings: const [],
+          ingestionSteps: done,
+          summary: const JobSummary(
+            mapWidth: 30,
+            mapHeight: 30,
+            ingestion: ingestion,
+          ),
         ),
       ],
     );
@@ -254,26 +325,70 @@ void main() {
 
     await tester.enterText(find.byKey(const Key('prompt')), 'graveyard');
     await _tap(tester, find.text('Upload spritesheets'));
-    expect(
-      find.textContaining('Custom spritesheet ingestion is not available yet'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('not available yet'), findsNothing);
     await _tap(tester, find.text('Add files').first);
-    expect(find.text('sheet.png'), findsOneWidget);
-
     await _tap(tester, find.text('Generate level'));
     await tester.pump();
 
-    expect(api.lastRequest?.assetPack, isNull);
     expect(api.lastRequest?.spritesheets.single.name, 'sheet.png');
-    expect(_stateOf(tester, '1. Data Ingestion'), 'failed');
+    expect(_stateOf(tester, '1. Data Ingestion'), 'running');
     expect(
       find.text(
-        'Spritesheet ingestion is not available yet. Choose a built-in asset '
-        'pack.',
+        'Classification agent (AI) [3/10]: 3 of 10 batches',
       ),
       findsOneWidget,
     );
+
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump();
+    await tester.pump();
+    expect(
+      find.text('Classification agent (AI) [10/10]: 10 of 10 batches'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Quality gate: floor families: grass (16)'),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('contact_sheet')), findsOneWidget);
+    expect(find.text('175 of 307 chips'), findsOneWidget);
+    expect(find.text('floor: 61, obstacle: 60'), findsOneWidget);
+    expect(find.text('grass: 20, stone_path: 16'), findsOneWidget);
+    expect(find.text('fragment: 50'), findsOneWidget);
+    expect(
+      find.text('41 calls, 110000 input + 62000 output tokens, 357.0 s'),
+      findsOneWidget,
+    );
+    expect(find.text('Try Out'), findsOneWidget);
+  });
+
+  testWidgets('ingestion_no_floor shows a friendly message', (tester) async {
+    final api = _FakeApi(
+      jobs: [
+        _job(
+          'failed',
+          [StageState.failed, StageState.pending, StageState.pending],
+          errorCode: 'ingestion_no_floor',
+        ),
+      ],
+    );
+    await _pump(
+      tester,
+      api,
+      pick: (_) async => [LevelFile(name: 'chars.png', bytes: _png)],
+    );
+    await tester.enterText(find.byKey(const Key('prompt')), 'graveyard');
+    await _tap(tester, find.text('Upload spritesheets'));
+    await _tap(tester, find.text('Add files').first);
+    await _tap(tester, find.text('Generate level'));
+    await tester.pump();
+
+    expect(_stateOf(tester, '1. Data Ingestion'), 'failed');
+    expect(
+      find.textContaining('The uploaded sheet has no usable isometric floor'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('(server message)'), findsOneWidget);
     expect(find.text('Try Out'), findsNothing);
   });
 

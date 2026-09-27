@@ -10,11 +10,15 @@ Variables:
                                     resolves from the repository root
     GOOGLE_GENAI_MODEL              model name, for example gemini-3.5-flash
     LLM_PROVIDER                    optional, only ``gemini`` (default)
-    LLM_MODE                        optional: live (default), record, replay
+    LLM_MODE                        optional: live (default), record, replay,
+                                    update (replay if recorded, else record)
     LLM_THINKING_LEVEL              optional: minimal, low, medium (default),
                                     high, or off (let the model decide)
     LLM_THINKING_BUDGET             optional thinking budget in tokens; wins
                                     over the level (-1 = automatic, 0 = off)
+    LLM_THINKING_LEVEL_VISION       optional, Pipeline 1 vision agents: minimal,
+                                    low (default), medium, high, or off
+    INGESTION_MAX_CONCURRENCY       optional, parallel agent calls (default 6)
 
 Errors name the variable, never its value. ``LLMConfig`` hides the project
 and the credentials path from its repr, so it can be logged.
@@ -35,7 +39,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 ENV_FILE = REPO_ROOT / ".env"
 
 PROVIDERS = ("gemini",)
-MODES = ("live", "record", "replay")
+MODES = ("live", "record", "replay", "update")
 THINKING_LEVELS = ("minimal", "low", "medium", "high")
 DEFAULT_THINKING_LEVEL = "medium"
 _TRUE = {"1", "true", "yes", "on"}
@@ -117,6 +121,29 @@ def load_config(
         thinking_level=thinking_level,
         thinking_budget=thinking_budget,
     )
+
+
+def setting(name: str, default: str | None = None, env_file: Path | None = ENV_FILE,
+            environ: Mapping[str, str] | None = None) -> str | None:
+    """One optional setting (environment first, then ``.env``), without the model checks."""
+    env = os.environ if environ is None else environ
+    if env.get(name, "").strip():
+        return env[name].strip()
+    if env_file is not None and env_file.is_file():
+        value = dotenv_values(env_file).get(name)
+        if value and value.strip():
+            return value.strip()
+    return default
+
+
+def vision_thinking_level(env_file: Path | None = ENV_FILE, environ: Mapping[str, str] | None = None) -> str | None:
+    """``LLM_THINKING_LEVEL_VISION`` for the Pipeline 1 vision agents (default ``low``; ``off`` = model default)."""
+    level = (setting("LLM_THINKING_LEVEL_VISION", "low", env_file, environ) or "low").lower()
+    if level == "off":
+        return None
+    if level not in THINKING_LEVELS:
+        raise LLMConfigError(f"LLM_THINKING_LEVEL_VISION must be one of: {', '.join(THINKING_LEVELS)}, off")
+    return level
 
 
 def _thinking(level: str | None, budget: str | None) -> tuple[str | None, int | None]:

@@ -29,10 +29,12 @@ log = logging.getLogger(__name__)
 
 STAGES = ("ingesting", "planning", "executing")
 # Bundle files that may be served: the map, its preview, the tilesets
-# (tileset.png/.tsj, tileset_1.png/.tsj, ...), and the agentic planner's
-# topology graph and validation report. Everything else is 404.
+# (tileset.png/.tsj, tileset_1.png/.tsj, ...), the agentic planner's
+# topology graph and validation report, and for uploads the Pipeline 1
+# contact sheet and ingestion report. Everything else is 404.
 BUNDLE_FILE_RE = re.compile(
     r"level\.tmj|preview_level\.png|tileset(_\d+)?\.(png|tsj)|topology_graph\.json|validation_report\.json"
+    r"|contact_sheet\.png|ingestion_report\.json"
 )
 
 
@@ -78,6 +80,7 @@ class JobManager:
         # llm_provider: for tests (replay); None = configured by LLM_MODE.
         self.llm_provider = llm_provider
         self.jobs_dir = data_dir / "jobs"
+        self.cache_dir = data_dir / "ingestion_cache"
         self.jobs_dir.mkdir(parents=True, exist_ok=True)
         self._executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="level-job")
         self._lock = threading.Lock()
@@ -131,7 +134,7 @@ class JobManager:
 
         ingestion = IngestionRequest(
             pack_catalog=request.pack_catalog,
-            spritesheets=[f.path for f in store("spritesheets", request.spritesheets)],
+            spritesheets=store("spritesheets", request.spritesheets),
             tilesets=store("tilesets", request.tilesets),
             maps=store("maps", request.maps),
         )
@@ -148,6 +151,7 @@ class JobManager:
             "error": None,
             "summary": None,
             "planner": request.planner,
+            "ingestion_steps": [],
             "planning_steps": [],
         }
         (job_dir / "job.json").write_text(json.dumps(job, indent=2), encoding="utf-8")
@@ -174,7 +178,14 @@ class JobManager:
 
         try:
             start("ingesting")
-            ingested = run_ingestion(ingestion, work)
+            ingested = run_ingestion(
+                ingestion, work, job_dir=job_dir, provider=self.llm_provider,
+                on_step=lambda steps: self._update(job_id, ingestion_steps=steps), cache_dir=self.cache_dir,
+            )
+            if ingested.warnings:
+                self._update(job_id, warnings=self.get(job_id)["warnings"] + ingested.warnings)
+            for path in ingested.extra_files:
+                shutil.copyfile(path, bundle / path.name)
             finish("ingesting")
 
             start("planning")
@@ -189,7 +200,9 @@ class JobManager:
 
             start("executing")
             try:
-                run_compile(str(planning.plan_path), str(ingested.catalog_path), str(bundle))
+                run_compile(
+                    str(planning.plan_path), str(ingested.catalog_path), str(bundle), source_root=ingested.source_root,
+                )
             except Exception as exc:
                 raise StageError("execution_failed", str(exc)) from exc
             for path in planning.extra_files:
@@ -198,6 +211,8 @@ class JobManager:
 
             summary = _summarize(planning.plan_path, ingested.catalog_path, ingested.legacy_files)
             summary.update(planning.summary)
+            if ingested.summary is not None:
+                summary["ingestion"] = ingested.summary
             summary["warnings"] = self.get(job_id)["warnings"]
             self._update(job_id, status="done", summary=summary)
         except Exception as exc:
@@ -205,7 +220,8 @@ class JobManager:
             if isinstance(exc, StageError):
                 error = {"code": exc.code, "message": exc.message}
                 summary = exc.details
-                for name in ("topology_graph.json", "validation_report.json"):
+                for name in ("topology_graph.json", "validation_report.json", "contact_sheet.png",
+                             "ingestion_report.json"):
                     if (work / name).is_file():
                         shutil.copyfile(work / name, bundle / name)
             else:

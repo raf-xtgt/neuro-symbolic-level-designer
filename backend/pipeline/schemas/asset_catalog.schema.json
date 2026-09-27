@@ -23,7 +23,7 @@
         "properties": {
           "id":        { "type": "integer" },
           "name":      { "type": "string" },
-          "source":    { "type": "string", "description": "Spritesheet path, relative to the repository root" },
+          "source":    { "type": "string", "description": "Spritesheet path, relative to the repository root (asset packs) or the job folder (uploads)" },
           "category":  { "type": "string", "enum": ["floor", "wall", "ramp", "obstacle", "decoration", "water", "hazard"] },
           "walkable":  { "type": "boolean" },
           "material":  { "type": "string" },
@@ -52,6 +52,7 @@
           },
           "tags":       { "type": "array", "items": { "type": "string" } },
           "source_ref": { "type": "string", "description": "Identifier in a legacy definition, for example 'flare:tile=16'" },
+          "description": { "type": "string", "description": "Short description of what the tile shows (Pipeline 1 uploads)" },
           "collision_polygon": {
             "type": "array",
             "items": {

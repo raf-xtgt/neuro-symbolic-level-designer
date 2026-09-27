@@ -266,6 +266,75 @@ void main() {
     expect(job.summary!.validation!.failed.single.name, 'rooms_reachable');
   });
 
+  test('getJob parses ingestion steps and the ingestion summary', () async {
+    final api = LevelApi(
+      _base,
+      client: MockClient(
+        (_) async => _json({
+          ..._job,
+          'ingestion_steps': [
+            {'node': 'preprocess', 'status': 'done', 'message': '12 chips'},
+            {
+              'node': 'entity_agent',
+              'status': 'cached',
+              'message': 'from the ingestion cache',
+              'done': null,
+              'total': null,
+            },
+            {
+              'node': 'boundary_agent',
+              'status': 'running',
+              'message': '1 of 2 batches',
+              'done': 1,
+              'total': 2,
+            },
+          ],
+          'summary': {
+            ...(_job['summary'] as Map<String, dynamic>),
+            'ingestion': {
+              'cached': true,
+              'sheets': [
+                {
+                  'name': 'big.png',
+                  'tile_size': [128, 64],
+                  'scale': 0.5,
+                  'size': [512, 448],
+                },
+              ],
+              'chips': 12,
+              'tiles': 10,
+              'tile_count_by_category': {'floor': 8, 'decoration': 2},
+              'tile_count_by_family': {'grass': 8, 'fern': 2},
+              'exclusions': {'noise': 2},
+              'conflicts': 1,
+              'llm_usage': {
+                'calls': 0,
+                'input_tokens': 0,
+                'output_tokens': 0,
+                'latency_ms': 0,
+              },
+            },
+          },
+        }),
+      ),
+    );
+    final job = await api.getJob('abc');
+    expect(
+      [for (final s in job.ingestionSteps) (s.node, s.done, s.total)],
+      [
+        ('preprocess', null, null),
+        ('entity_agent', null, null),
+        ('boundary_agent', 1, 2),
+      ],
+    );
+    final ingestion = job.summary!.ingestion!;
+    expect(ingestion.cached, isTrue);
+    expect(ingestion.tileSizes, ['big.png: 128 x 64, scaled x0.5']);
+    expect(ingestion.tilesByFamily.keys.first, 'grass');
+    expect(ingestion.exclusions, {'noise': 2});
+    expect(ingestion.llmUsage!.calls, 0);
+  });
+
   test('getJob parses a failed job', () async {
     final api = LevelApi(
       _base,
@@ -278,7 +347,7 @@ void main() {
             'planning': 'pending',
             'executing': 'pending',
           },
-          'error': {'code': 'ingestion_not_implemented', 'message': 'nope'},
+          'error': {'code': 'ingestion_no_floor', 'message': 'nope'},
           'summary': null,
         }),
       ),
@@ -286,7 +355,7 @@ void main() {
     final job = await api.getJob('abc');
     expect(job.isFailed, isTrue);
     expect(job.stages['ingesting'], StageState.failed);
-    expect(job.errorCode, 'ingestion_not_implemented');
+    expect(job.errorCode, 'ingestion_no_floor');
     expect(job.errorMessage, 'nope');
     expect(job.summary, isNull);
   });

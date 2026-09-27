@@ -5,6 +5,8 @@ free, and deterministic.
 * ``live``: pass-through to the inner provider.
 * ``record``: calls the inner provider and writes ``<fixture_dir>/<key>.json``.
 * ``replay``: reads the fixture; no inner provider or network is needed.
+* ``update``: replays when the fixture exists, else calls the inner provider
+  and records (keeps existing recordings stable when a few prompts change).
 
 The key is the SHA-256 of the model, the schema name and JSON schema, the
 system instruction, the prompt, the image hashes, and the temperature, so a
@@ -20,7 +22,7 @@ from pathlib import Path
 from pipeline.llm.base import LLMProvider, LLMResult, LLMUnavailableError, T, log_call
 
 FIXTURE_DIR = Path(__file__).resolve().parents[2] / "tests" / "llm_fixtures"
-MODES = ("live", "record", "replay")
+MODES = ("live", "record", "replay", "update")
 
 
 def fixture_key(
@@ -49,6 +51,7 @@ class RecordingProvider:
     ):
         if mode not in MODES:
             raise ValueError(f"mode must be one of {MODES}")
+        self.used: set[str] = set()  # fixture keys read or written (for pruning stale fixtures)
         if inner is None and mode != "replay":
             raise ValueError(f"mode {mode} needs an inner provider")
         self.inner = inner
@@ -82,8 +85,9 @@ class RecordingProvider:
             self.model, schema.__name__, schema.model_json_schema(), system, prompt, images, temperature,
         )
         path = self.fixture_dir / f"{key}.json"
+        self.used.add(key)
 
-        if self.mode == "record":
+        if self.mode == "record" or (self.mode == "update" and not path.is_file()):
             result = self.inner.generate_structured(schema, **kwargs)
             self.fixture_dir.mkdir(parents=True, exist_ok=True)
             fixture = {

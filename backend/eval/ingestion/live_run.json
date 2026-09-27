@@ -1,0 +1,48 @@
+{
+  "sheets": {
+    "grassland_tiles.png (cold, via the API)": {
+      "llm": "41 calls, 112,974 input + 60,537 output tokens, 316 s model time",
+      "seconds": 67.8
+    },
+    "tileset_desert.png": {
+      "llm": "57 calls, 156,463 input + 86,692 output tokens, 407 s model time",
+      "seconds": 76.18311064099544
+    },
+    "sheet_ground_128x64_shaded.png": {
+      "llm": "8 calls, 19,700 input + 11,277 output tokens, 58 s model time",
+      "seconds": 11.855902434996096
+    },
+    "kenney_farm_sheet.png": {
+      "llm": "4 calls, 9,026 input + 3,515 output tokens, 18 s model time",
+      "seconds": 6.5738679459900595
+    }
+  },
+  "e2e_seconds": [
+    78.64006415900076,
+    14.754469915991649
+  ],
+  "e2e_llm": [
+    "41 calls, 112,974 input + 60,537 output tokens, 316 s model time",
+    "0 calls, 0 input + 0 output tokens, 0 s model time"
+  ],
+  "negative": {
+    "lines": [
+      "| Measure | Value |",
+      "|---|---|",
+      "| Result | as expected: ingestion_no_floor: no isometric floor tiles found; the sheet looks like character sprites (56 of 56 chips are characters) |",
+      "| Chips flagged as characters | 56 of 56 |",
+      "| LLM | 8 calls, 21,036 input + 14,224 output tokens, 68 s model time |",
+      "| Wall time | 13 s |",
+      "",
+      "Run live and not recorded: the sheet is licensed for local use only.",
+      ""
+    ],
+    "cost_row": [
+      "survivor.png (negative)",
+      56,
+      0,
+      "8 calls, 21,036 input + 14,224 output tokens, 68 s model time",
+      "13 s"
+    ]
+  }
+}

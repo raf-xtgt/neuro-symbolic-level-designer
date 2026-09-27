@@ -14,6 +14,6 @@ def get_provider(config: LLMConfig | None = None) -> LLMProvider:
     from pipeline.llm.gemini import GeminiProvider  # config.provider is "gemini"
 
     provider = GeminiProvider(config)
-    if config.mode == "record":
-        return RecordingProvider(provider, "record")
+    if config.mode in ("record", "update"):
+        return RecordingProvider(provider, config.mode)
     return provider

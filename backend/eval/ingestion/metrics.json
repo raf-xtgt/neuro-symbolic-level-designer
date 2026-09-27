@@ -1,0 +1,13 @@
+{
+  "chips": 307,
+  "truth": 216,
+  "matched": 171,
+  "chip_recall": 0.7916666666666666,
+  "chip_precision": 0.5570032573289903,
+  "category_accuracy": 0.9824561403508771,
+  "walkable_accuracy": 1.0,
+  "connector_precision": 1.0,
+  "connector_recall": 0.4117647058823529,
+  "anchor_median": 4.123105625617661,
+  "anchor_p90": 32.0
+}

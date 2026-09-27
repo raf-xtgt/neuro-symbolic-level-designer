@@ -26,8 +26,8 @@ from PIL import Image
 ALPHA_THRESHOLD = 0      # alpha > threshold is opaque
 DILATE_PX = 1            # join sprite parts 1-2 px apart (2+ merges neighbours)
 MIN_AREA = 32            # components with fewer opaque pixels are noise
-MERGED_MIN_WIDTH = 192   # 3 floor tiles wide
-MERGED_MIN_HEIGHT = 256
+MERGED_MIN_WIDTH = 192   # 3 floor tiles wide (at the 64 x 32 grid; scales with the grid)
+MERGED_MIN_HEIGHT = 256  # 8 floor tiles tall
 GRID_MIN_FILL = 0.10     # grid cells with less opaque area are dropped
 
 Rect = tuple[int, int, int, int]  # x, y, w, h
@@ -59,6 +59,8 @@ def _grid_chips(mask: np.ndarray, region: Rect, grid: tuple[int, int]) -> list[C
 def slice_spritesheet(path: str | Path, grid: tuple[int, int] = (64, 32)) -> list[Chip]:
     """Slices a spritesheet into sprite rectangles."""
     mask = _opaque_mask(path)
+    merged_w = MERGED_MIN_WIDTH * grid[0] // 64
+    merged_h = MERGED_MIN_HEIGHT * grid[1] // 32
     joined = mask
     if DILATE_PX:
         kernel = np.ones((2 * DILATE_PX + 1, 2 * DILATE_PX + 1), np.uint8)
@@ -73,7 +75,7 @@ def slice_spritesheet(path: str | Path, grid: tuple[int, int] = (64, 32)) -> lis
             continue
         x0, y0 = int(xs.min()), int(ys.min())
         rect = (x0, y0, int(xs.max()) - x0 + 1, int(ys.max()) - y0 + 1)
-        if rect[2] >= MERGED_MIN_WIDTH or rect[3] >= MERGED_MIN_HEIGHT:
+        if rect[2] >= merged_w or rect[3] >= merged_h:
             chips.extend(_grid_chips(mask, rect, grid))
         else:
             chips.append(Chip(rect, "contour"))

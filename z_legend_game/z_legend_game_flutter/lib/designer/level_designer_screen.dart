@@ -33,6 +33,17 @@ const Map<String, String> _stageLabels = {
   'executing': '3. Execution',
 };
 
+/// Pipeline 1 steps for uploaded sheets (`ingestion_steps`).
+const Map<String, String> _ingestionLabels = {
+  'preprocess': 'Pre-processor',
+  'boundary_agent': 'Tile boundary agent (AI)',
+  'classification_agent': 'Classification agent (AI)',
+  'collision_agent': 'Collision agent (AI)',
+  'entity_agent': 'Entity agent (AI)',
+  'harmonizer': 'Harmonizer',
+  'quality_gate': 'Quality gate',
+};
+
 /// Pipeline 2 graph nodes (`planning_steps`).
 const Map<String, String> _nodeLabels = {
   'topology_agent': 'Topology agent (AI)',
@@ -47,9 +58,10 @@ const Map<String, String> _nodeLabels = {
 String _errorText(JobStatus status) {
   final message = status.errorMessage ?? 'Generation failed.';
   return switch (status.errorCode) {
-    'ingestion_not_implemented' =>
-      'Spritesheet ingestion is not available yet. Choose a built-in asset '
-          'pack.',
+    'ingestion_no_floor' =>
+      'The uploaded sheet has no usable isometric floor tiles (64 x 32 '
+          'diamonds, or 128 x 64 / 32 x 16 ones that can be scaled). A level '
+          'needs a walkable floor. ($message)',
     'llm_unavailable' =>
       'The AI planner could not reach the model. Try again, or choose the '
           'Placeholder planner. ($message)',
@@ -118,6 +130,7 @@ class _LevelDesignerScreenState extends State<LevelDesignerScreen> {
   JobStatus? _status;
   Timer? _pollTimer;
   Uint8List? _preview;
+  Uint8List? _contactSheet;
 
   bool get _running =>
       _submitting || (_job != null && !(_status?.isFinished ?? false));
@@ -228,6 +241,7 @@ class _LevelDesignerScreenState extends State<LevelDesignerScreen> {
       _job = null;
       _status = null;
       _preview = null;
+      _contactSheet = null;
     });
     try {
       final job = await _api!.createLevel(
@@ -273,6 +287,13 @@ class _LevelDesignerScreenState extends State<LevelDesignerScreen> {
           'preview_level.png',
         );
         if (mounted && _job == job) setState(() => _preview = preview);
+        if (status.summary?.ingestion != null) {
+          final sheet = await _api!.getBundleFile(
+            job.jobId,
+            'contact_sheet.png',
+          );
+          if (mounted && _job == job) setState(() => _contactSheet = sheet);
+        }
       } else if (!status.isFailed) {
         _pollTimer = Timer(_pollInterval, _poll);
       }
@@ -476,20 +497,12 @@ class _LevelDesignerScreenState extends State<LevelDesignerScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const _Panel(
-          color: Color(0x33FFC107),
-          child: Row(
-            children: [
-              Icon(Icons.info_outline, color: Colors.amber),
-              SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'Custom spritesheet ingestion is not available yet. Use a '
-                  'built-in asset pack to generate a level.',
-                ),
-              ),
-            ],
-          ),
+        const Text(
+          'Isometric spritesheets with a 2:1 base diamond (64 x 32, or 128 x '
+          '64 / 32 x 16, scaled). AI agents slice and classify the tiles; the '
+          'first run of a sheet takes about a minute, later runs use the '
+          'cache.',
+          style: TextStyle(color: Colors.white70),
         ),
         const SizedBox(height: 8),
         _fileInput(_FileInput.spritesheets, 'Spritesheets (PNG, 1 to 10)'),
@@ -542,6 +555,8 @@ class _LevelDesignerScreenState extends State<LevelDesignerScreen> {
               label: _stageLabels[stage]!,
               state: status?.stages[stage] ?? StageState.pending,
             ),
+            if (stage == 'ingesting' && status != null)
+              for (final step in status.ingestionSteps) _IngestionStepRow(step),
             if (stage == 'planning' && status != null)
               for (final step in status.planningSteps) _PlanningStepRow(step),
           ],
@@ -591,6 +606,23 @@ class _LevelDesignerScreenState extends State<LevelDesignerScreen> {
       else
         const LinearProgressIndicator(),
       const SizedBox(height: 12),
+      if (summary?.ingestion case final ingestion?) ...[
+        const _Heading('Ingested tiles'),
+        if (_contactSheet != null)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.memory(
+              _contactSheet!,
+              key: const Key('contact_sheet'),
+              fit: BoxFit.contain,
+              errorBuilder: (_, _, _) =>
+                  const Text('Contact sheet not available.'),
+            ),
+          ),
+        const SizedBox(height: 8),
+        ..._ingestionLines(ingestion),
+        const SizedBox(height: 16),
+      ],
       if (summary != null) ...[
         _SummaryLine(
           'Map size',
@@ -737,6 +769,80 @@ class _StageRow extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(child: Text(label)),
           Text(state.name, style: const TextStyle(color: Colors.white70)),
+        ],
+      ),
+    );
+  }
+}
+
+List<Widget> _ingestionLines(IngestionSummary s) {
+  String counts(Map<String, int> m, [int? take]) =>
+      (take == null ? m.entries : m.entries.take(take))
+          .map((e) => '${e.key}: ${e.value}')
+          .join(', ');
+  final usage = s.llmUsage;
+  return [
+    _SummaryLine(
+      'Tiles',
+      '${s.tiles} of ${s.chips} chips${s.cached ? ' (from the cache)' : ''}',
+    ),
+    _SummaryLine('Tile size', s.tileSizes.join('\n')),
+    _SummaryLine('By category', counts(s.tilesByCategory)),
+    _SummaryLine('Top families', counts(s.tilesByFamily, 8)),
+    _SummaryLine(
+      'Excluded',
+      s.exclusions.isEmpty ? 'none' : counts(s.exclusions),
+    ),
+    _SummaryLine('Conflicts resolved', '${s.conflicts}'),
+    if (usage != null)
+      _SummaryLine(
+        'Ingestion LLM',
+        s.cached
+            ? 'none (cache hit)'
+            : '${usage.calls} calls, ${usage.inputTokens} input + '
+                  '${usage.outputTokens} output tokens, '
+                  '${(usage.latencyMs / 1000).toStringAsFixed(1)} s',
+      ),
+  ];
+}
+
+class _IngestionStepRow extends StatelessWidget {
+  const _IngestionStepRow(this.step);
+
+  final IngestionStep step;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = _ingestionLabels[step.node] ?? step.node;
+    final icon = switch (step.status) {
+      'running' => const SizedBox.square(
+        dimension: 14,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      ),
+      'failed' => const Icon(
+        Icons.error_outline,
+        size: 16,
+        color: Colors.redAccent,
+      ),
+      'cached' => const Icon(Icons.bolt, size: 16, color: Colors.amber),
+      _ => const Icon(Icons.check, size: 16, color: Colors.green),
+    };
+    final progress = step.total == null || step.total == 0
+        ? ''
+        : ' [${step.done}/${step.total}]';
+    return Padding(
+      padding: const EdgeInsets.only(left: 36, top: 2, bottom: 2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(width: 16, child: Center(child: icon)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '$label$progress: ${step.message}',
+              style: const TextStyle(fontSize: 13, color: Colors.white70),
+            ),
+          ),
         ],
       ),
     );

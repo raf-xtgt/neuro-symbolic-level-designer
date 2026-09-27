@@ -15,6 +15,7 @@ from fastapi.testclient import TestClient
 from PIL import Image
 
 from app.main import create_app
+from tests.pipeline1_helpers import ScriptedProvider
 
 BACKEND_DIR = Path(__file__).parent.parent
 STARTER_BUNDLE = (
@@ -27,7 +28,8 @@ PACK = {"asset_pack": "grassland_starter", "planner": "placeholder"}
 
 @pytest.fixture(scope="module")
 def client(tmp_path_factory) -> TestClient:
-    return TestClient(create_app(data_dir=tmp_path_factory.mktemp("data")))
+    # Uploads run Pipeline 1; the scripted provider stands in for the vision model.
+    return TestClient(create_app(data_dir=tmp_path_factory.mktemp("data"), llm_provider=ScriptedProvider()))
 
 
 def _png_bytes() -> bytes:
@@ -214,14 +216,15 @@ def test_same_prompt_same_level(client):
     assert _ground(client, a) != _ground(client, c)
 
 
-def test_uploaded_spritesheet_not_implemented(client):
+def test_uploaded_sheet_without_floor_tiles(client):
+    # A plain rectangle: Pipeline 1 runs, but finds no isometric floor tiles.
     files = [("spritesheets", ("sheet.png", _png_bytes(), "image/png"))]
     resp = _create(client, {"prompt": "a level"}, files)
     assert resp.status_code == 202, resp.text
     job = _wait(client, resp.json()["status_url"])
     assert job["status"] == "failed"
     assert job["stages"]["ingesting"] == "failed"
-    assert job["error"]["code"] == "ingestion_not_implemented"
+    assert job["error"]["code"] == "ingestion_no_floor"
 
 
 def test_upload_and_pack_warns(client):
@@ -229,7 +232,7 @@ def test_upload_and_pack_warns(client):
     resp = _create(client, {"prompt": "a level", **PACK}, files)
     assert resp.status_code == 202, resp.text
     job = _wait(client, resp.json()["status_url"])
-    assert job["error"]["code"] == "ingestion_not_implemented"
+    assert job["error"]["code"] == "ingestion_no_floor"
     assert any("grassland_starter" in w for w in job["warnings"])
 
 

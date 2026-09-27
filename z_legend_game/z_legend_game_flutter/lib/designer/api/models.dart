@@ -122,6 +122,36 @@ class PlanningStep {
   bool get failed => status == 'failed';
 }
 
+/// One step of Pipeline 1 for uploaded sheets (`ingestion_steps`).
+class IngestionStep {
+  const IngestionStep({
+    required this.node,
+    required this.status,
+    required this.message,
+    this.done,
+    this.total,
+  });
+
+  factory IngestionStep.fromJson(Map<String, dynamic> json) => IngestionStep(
+    node: json['node'] as String,
+    status: json['status'] as String,
+    message: json['message'] as String,
+    done: json['done'] as int?,
+    total: json['total'] as int?,
+  );
+
+  /// E.g. `preprocess`, `classification_agent`, `harmonizer`, `quality_gate`.
+  final String node;
+
+  /// `running`, `done`, `failed` or `cached`.
+  final String status;
+  final String message;
+
+  /// Batches done and in total, for the agent steps.
+  final int? done;
+  final int? total;
+}
+
 /// `GET /api/levels/{job_id}`.
 class JobStatus {
   const JobStatus({
@@ -132,6 +162,7 @@ class JobStatus {
     this.errorCode,
     this.errorMessage,
     this.summary,
+    this.ingestionSteps = const [],
     this.planningSteps = const [],
   });
 
@@ -148,6 +179,9 @@ class JobStatus {
       errorCode: error?['code'] as String?,
       errorMessage: error?['message'] as String?,
       summary: summary == null ? null : JobSummary.fromJson(summary),
+      ingestionSteps: (json['ingestion_steps'] as List? ?? const [])
+          .map((s) => IngestionStep.fromJson(s as Map<String, dynamic>))
+          .toList(),
       planningSteps: (json['planning_steps'] as List? ?? const [])
           .map((s) => PlanningStep.fromJson(s as Map<String, dynamic>))
           .toList(),
@@ -165,6 +199,7 @@ class JobStatus {
 
   /// Also set for a failed agentic planning run (validation report, rooms).
   final JobSummary? summary;
+  final List<IngestionStep> ingestionSteps;
   final List<PlanningStep> planningSteps;
 
   bool get isDone => status == 'done';
@@ -186,6 +221,7 @@ class JobSummary {
     this.rooms = const [],
     this.validation,
     this.llmUsage,
+    this.ingestion,
   });
 
   factory JobSummary.fromJson(Map<String, dynamic> json) {
@@ -194,6 +230,7 @@ class JobSummary {
         (json[key] as Map<String, dynamic>? ?? const {}).cast<String, int>();
     final validation = json['validation'] as Map<String, dynamic>?;
     final usage = json['llm_usage'] as Map<String, dynamic>?;
+    final ingestion = json['ingestion'] as Map<String, dynamic>?;
     return JobSummary(
       mapWidth: size?['width'] as int? ?? 0,
       mapHeight: size?['height'] as int? ?? 0,
@@ -210,6 +247,9 @@ class JobSummary {
           ? null
           : ValidationReport.fromJson(validation),
       llmUsage: usage == null ? null : LlmUsage.fromJson(usage),
+      ingestion: ingestion == null
+          ? null
+          : IngestionSummary.fromJson(ingestion),
     );
   }
 
@@ -226,6 +266,61 @@ class JobSummary {
   final String? designNotes;
   final List<RoomSummary> rooms;
   final ValidationReport? validation;
+  final LlmUsage? llmUsage;
+
+  /// Pipeline 1 facts, for uploaded spritesheets only.
+  final IngestionSummary? ingestion;
+}
+
+/// Pipeline 1 summary of an upload job (`summary.ingestion`).
+class IngestionSummary {
+  const IngestionSummary({
+    required this.cached,
+    required this.chips,
+    required this.tiles,
+    required this.tilesByCategory,
+    required this.tilesByFamily,
+    required this.exclusions,
+    required this.conflicts,
+    required this.tileSizes,
+    this.llmUsage,
+  });
+
+  factory IngestionSummary.fromJson(Map<String, dynamic> json) {
+    Map<String, int> counts(String key) =>
+        (json[key] as Map<String, dynamic>? ?? const {}).cast<String, int>();
+    final usage = json['llm_usage'] as Map<String, dynamic>?;
+    return IngestionSummary(
+      cached: json['cached'] as bool? ?? false,
+      chips: json['chips'] as int? ?? 0,
+      tiles: json['tiles'] as int? ?? 0,
+      tilesByCategory: counts('tile_count_by_category'),
+      tilesByFamily: counts('tile_count_by_family'),
+      exclusions: counts('exclusions'),
+      conflicts: json['conflicts'] as int? ?? 0,
+      tileSizes: [
+        for (final s
+            in (json['sheets'] as List? ?? const [])
+                .cast<Map<String, dynamic>>())
+          '${s['name']}: ${(s['tile_size'] as List).join(' x ')}'
+              '${(s['scale'] as num) == 1 ? '' : ', scaled x${s['scale']}'}',
+      ],
+      llmUsage: usage == null ? null : LlmUsage.fromJson(usage),
+    );
+  }
+
+  final bool cached;
+  final int chips;
+  final int tiles;
+  final Map<String, int> tilesByCategory;
+
+  /// Most common first, as sent by the backend.
+  final Map<String, int> tilesByFamily;
+  final Map<String, int> exclusions;
+  final int conflicts;
+
+  /// Per sheet: detected base tile size and scale.
+  final List<String> tileSizes;
   final LlmUsage? llmUsage;
 }
 

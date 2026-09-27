@@ -318,6 +318,14 @@ def test_replay_missing_fixture_names_the_prompt(tmp_path):
     assert "What is 2 + 3?" in str(info.value) and "LLM_MODE=record" in str(info.value)
 
 
+def test_update_mode_replays_or_records(tmp_path):
+    first = RecordingProvider(FakeProvider([Ping(answer=1, word="a")], model="m1"), "update", fixture_dir=tmp_path)
+    assert first.generate_structured(Ping, system="s", prompt="p").value.answer == 1  # recorded
+    again = RecordingProvider(FakeProvider([], model="m1"), "update", fixture_dir=tmp_path)
+    assert again.generate_structured(Ping, system="s", prompt="p").attempts == 0  # replayed, no call
+    assert len(again.used) == 1
+
+
 def test_live_mode_passes_through(tmp_path):
     fake = FakeProvider([Ping(answer=1, word="w")])
     assert RecordingProvider(fake, "live", fixture_dir=tmp_path).generate_structured(
