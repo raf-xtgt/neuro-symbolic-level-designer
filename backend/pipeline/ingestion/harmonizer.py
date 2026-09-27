@@ -16,6 +16,12 @@ conflicts.
    arbiter (one call per up to 32 chips). Whatever the arbiter leaves
    inconsistent is fixed by the rule itself (``resolved_by: rule``).
 4. Family normalization (lowercase snake_case, no digits, singular).
+   Structure tags (``structure_role``): ``structure_part`` for slices of a
+   multi-tile assembly (the Boundary Agent says ``multi_tile_part``, a
+   building family one tile wide, or a ``*_wall`` piece one tile wide);
+   ``structure`` plus ``footprint_<n>`` for a whole building in one chip
+   (building family, footprint wider than 1 tile). Pipeline 2 never places a
+   ``structure_part`` and places a ``structure`` at most once per room.
 5. Catalog tiles (ARCHITECTURE.md 6.1) in a normalized atlas: every kept chip
    is copied into a cell whose width is a multiple of 64 px and height a
    multiple of 32 px, with the anchor at the bottom center of the base
@@ -41,6 +47,8 @@ EXCLUDED_KINDS = ("noise", "fragment", "multi_tile_part")
 CATEGORIES = ("floor", "wall", "ramp", "obstacle", "decoration", "water", "hazard")
 # Tags the Pipeline 2 digest treats as generic; a family must not be one of them.
 _GENERIC_FAMILY_RENAMES = {"tree": "tree_plain", "prop": "prop_item", "tall": "tall_object"}
+# Words of a family (or description) that name a building or part of one.
+BUILDING_WORDS = {"house", "cabin", "building", "hut", "shack", "tent", "tower", "roof"}
 ATLAS_WIDTH = 2048
 ATLAS_NAME = "catalog_atlas.png"
 
@@ -253,6 +261,24 @@ def _enforce_rules(rec: ChipRecord) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Structures
+# ---------------------------------------------------------------------------
+
+def structure_role(rec: ChipRecord) -> str | None:
+    """``structure`` (a whole building), ``structure_part`` (a slice of one), or None."""
+    if rec.category in ("floor", "water", "ramp"):
+        return None
+    if rec.boundary and rec.boundary.get("kind") == "multi_tile_part":
+        return "structure_part"
+    words = set(rec.family.split("_")) | set(re.findall(r"[a-z]+", rec.description.lower()))
+    if BUILDING_WORDS & words:
+        return "structure" if rec.chip.footprint > 1 else "structure_part"
+    if rec.family.endswith("_wall") and rec.chip.footprint <= 1:
+        return "structure_part"
+    return None
+
+
+# ---------------------------------------------------------------------------
 # Catalog
 # ---------------------------------------------------------------------------
 
@@ -307,6 +333,11 @@ def build_catalog(
             tags.append("autotile_required")
         if rec.interactive:
             tags.append("interactive")
+        role = structure_role(rec)
+        if role:
+            tags.append(role)
+        if role == "structure":
+            tags.append(f"footprint_{rec.chip.footprint}")
         tile = {
             "id": tile_id,
             "name": f"{rec.family}_{nn:02d}",

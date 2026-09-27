@@ -57,13 +57,14 @@ class _Sprites:
             off = ts.get("tileoffset", {"x": 0, "y": 0})
             anchor = (w - tw // 2 - off["x"], h - th // 2 - off["y"])
             image = Image.open(bundle_dir / ts["image"]).convert("RGBA")
-            self._tilesets.append((ts["firstgid"], ts["tilecount"], w, h, anchor, image))
+            self._tilesets.append((ts["firstgid"], ts["tilecount"], ts.get("columns") or ts["tilecount"], w, h, anchor, image))
 
     def get(self, gid: int) -> tuple[Image.Image, tuple[int, int]]:
-        for firstgid, count, w, h, anchor, image in self._tilesets:
+        for firstgid, count, columns, w, h, anchor, image in self._tilesets:
             if firstgid <= gid < firstgid + count:
-                x = (gid - firstgid) * w
-                return image.crop((x, 0, x + w, h)), anchor
+                local = gid - firstgid
+                x, y = (local % columns) * w, (local // columns) * h
+                return image.crop((x, y, x + w, y + h)), anchor
         raise KeyError(f"GID {gid} is in no tileset")
 
 

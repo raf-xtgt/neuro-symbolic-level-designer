@@ -9,8 +9,10 @@ Checks (``name``):
   * ``entities_walkable``  every entity is inside the map on a walkable cell
   * ``path_spawn_exit``    a path from PlayerSpawn to ExitTrigger
   * ``rooms_reachable``    every room has a cell reachable from the spawn
-  * ``boundary_integrity`` no walkable cell on the outermost ring (skipped with
-                           a warning when the catalog has no blocking tiles)
+  * ``boundary_integrity`` no cell reachable from the spawn on the outermost
+                           ring; unreachable open cells (the front zone behind
+                           the hedge) are fine (skipped with a warning when the
+                           catalog has no blocking tiles)
   * ``rooms_layout``       rooms inside the map and not overlapping
 
 Report: ``{passed, checks: [{name, passed, detail}], warnings}``.
@@ -84,12 +86,12 @@ def validate_plan(plan: dict, catalog: dict, rooms: dict[str, RoomRect]) -> dict
 
     if has_blocking:
         ring = {(r, c) for r in range(height) for c in range(width) if r in (0, height - 1) or c in (0, width - 1)}
-        open_ring = sorted(ring - blocked)
+        open_ring = sorted(ring & seen)
         check(
             "boundary_integrity",
-            [f"{len(open_ring)} walkable cells on the map edge, first at ({open_ring[0][1]}, {open_ring[0][0]})"]
+            [f"{len(open_ring)} reachable cells on the map edge, first at ({open_ring[0][1]}, {open_ring[0][0]})"]
             if open_ring else [],
-            "the map edge is fully blocked",
+            "no cell on the map edge is reachable from the spawn",
         )
     else:
         checks.append({"name": "boundary_integrity", "passed": True, "detail": "skipped: no blocking tiles"})

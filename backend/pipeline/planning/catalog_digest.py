@@ -5,9 +5,13 @@ Deterministic. Works for any catalog:
   * ``floor.<material>`` for floor tiles;
   * ``<category>.<family tag>`` for obstacles and decorations (a family tag is
     any tag other than the generic ones below), with ``<category>.<material>``
-    as the fallback.
-Tiles tagged ``autotile_required`` or ``fence`` are left out of every group:
-there are no placement rules for them yet (cliffs, water, fence connectors).
+    as the fallback;
+  * ``structure.<family>`` for whole buildings in one sprite (tag
+    ``structure``, footprint from the ``footprint_<n>`` tag): placed at most
+    once per room, by name in a room's ``dressing``.
+Tiles tagged ``autotile_required``, ``fence`` or ``structure_part`` are left
+out of every group: there are no placement rules for them yet (cliffs, water,
+fence connectors, slices of multi-tile buildings).
 
 The digest is the only catalog information the LLM sees.
 """
@@ -15,9 +19,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-EXCLUDED_TAGS = {"autotile_required", "fence"}
-GENERIC_TAGS = {"prop", "tall", "tree", "autotile_required", "fence"}
+EXCLUDED_TAGS = {"autotile_required", "fence", "structure_part"}
+GENERIC_TAGS = {"prop", "tall", "tree", "autotile_required", "fence", "structure", "structure_part"}
 GROUPED_CATEGORIES = ("floor", "obstacle", "decoration")
+STRUCTURE = "structure"
+FOOTPRINT_TAG = "footprint_"
+GROUP_ORDER = (*GROUPED_CATEGORIES, STRUCTURE)
 
 # Plural noun phrases for the known families, for the group descriptions.
 _FAMILY_NOUNS = {
@@ -53,6 +60,7 @@ class TileGroup:
     tall: bool
     tile_ids: tuple[int, ...]
     description: str
+    footprint: int = 1  # tiles along the east diagonal (structures)
 
     @property
     def count(self) -> int:
@@ -69,6 +77,10 @@ class TileGroup:
     @property
     def blocks(self) -> bool:
         return not self.walkable
+
+    @property
+    def is_structure(self) -> bool:
+        return self.category == STRUCTURE
 
 
 @dataclass(frozen=True)
@@ -99,19 +111,25 @@ class CatalogDigest:
             {
                 "id": g.id, "category": g.category, "walkable": g.walkable, "tall": g.tall,
                 "tile_ids": list(g.tile_ids), "count": g.count, "description": g.description,
+                **({"footprint": g.footprint} if g.is_structure else {}),
             }
             for g in self.groups
         ]
 
 
 def _family(tile: dict) -> str | None:
-    families = [t for t in tile.get("tags", []) if t not in GENERIC_TAGS]
+    families = [t for t in tile.get("tags", []) if t not in GENERIC_TAGS and not t.startswith(FOOTPRINT_TAG)]
     return families[0] if families else None
 
 
 def group_id(tile: dict) -> str | None:
     """The group of ``tile``, or None when it is not placeable by the planner."""
-    if tile["category"] not in GROUPED_CATEGORIES or EXCLUDED_TAGS & set(tile.get("tags", [])):
+    tags = set(tile.get("tags", []))
+    if EXCLUDED_TAGS & tags:
+        return None
+    if STRUCTURE in tags:
+        return f"{STRUCTURE}.{_family(tile) or tile.get('material', 'default')}"
+    if tile["category"] not in GROUPED_CATEGORIES:
         return None
     if tile["category"] == "floor":
         return f"floor.{tile.get('material', 'default')}"
@@ -125,11 +143,12 @@ def build_digest(catalog: dict) -> CatalogDigest:
         if gid is not None:
             members.setdefault(gid, []).append(tile)
 
-    order = {c: i for i, c in enumerate(GROUPED_CATEGORIES)}
+    order = {c: i for i, c in enumerate(GROUP_ORDER)}
     groups = []
     for gid in sorted(members, key=lambda g: (order[g.split(".")[0]], g)):
         tiles = members[gid]
-        category = tiles[0]["category"]
+        category = STRUCTURE if gid.startswith(f"{STRUCTURE}.") else tiles[0]["category"]
+        footprint = max(_footprint(t) for t in tiles) if category == STRUCTURE else 1
         walkable = all(t["walkable"] for t in tiles)
         tall = any("tall" in t.get("tags", []) for t in tiles)
         example = next((t["description"] for t in tiles if t.get("description")), None)
@@ -139,13 +158,23 @@ def build_digest(catalog: dict) -> CatalogDigest:
             walkable=walkable,
             tall=tall,
             tile_ids=tuple(t["id"] for t in tiles),
-            description=_describe(gid, category, len(tiles), walkable, tall, example),
+            description=_describe(gid, category, len(tiles), walkable, tall, example, footprint),
+            footprint=footprint,
         ))
     return CatalogDigest(tuple(groups))
 
 
+def _footprint(tile: dict) -> int:
+    """Footprint in tiles: the ``footprint_<n>`` tag, else the sprite width in base tiles."""
+    for tag in tile.get("tags", []):
+        if tag.startswith(FOOTPRINT_TAG) and tag[len(FOOTPRINT_TAG):].isdigit():
+            return max(1, int(tag[len(FOOTPRINT_TAG):]))
+    return max(1, tile.get("rect", {}).get("w", 64) // 64)
+
+
 def _describe(
     gid: str, category: str, count: int, walkable: bool, tall: bool, example: str | None = None,
+    footprint: int = 1,
 ) -> str:
     """``example``: a tile description from Pipeline 1, used for families not listed above."""
     family = gid.split(".", 1)[1]
@@ -153,6 +182,10 @@ def _describe(
         noun = _MATERIAL_NOUNS.get(family, f"{family.replace('_', ' ')} floor")
         text = f"{gid}: {count} {noun} floor variants, walkable"
         return text if family in _MATERIAL_NOUNS or not example else f"{text} (for example: {example})"
+    if category == STRUCTURE:
+        text = (f"{gid}: {count} whole {family.replace('_', ' ')} building(s), blocks movement, "
+                f"{footprint} tiles wide, placed at most once per room (name it in a room's dressing)")
+        return f"{text}, for example: {example}" if example else text
     noun = _FAMILY_NOUNS.get(family, f"{family.replace('_', ' ')} {category}s")
     parts = [f"{gid}: {count} {noun}", "walkable" if walkable else "blocks movement"]
     if example and family not in _FAMILY_NOUNS:

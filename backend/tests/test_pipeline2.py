@@ -12,7 +12,9 @@ import pytest
 
 from pipeline.llm.fake import FakeProvider
 from pipeline.planning.catalog_digest import build_digest
-from pipeline.planning.dressing import dress
+from pipeline.planning.dressing import (
+    CLUSTER_SIZE, LOW_FAMILIES, PILLAR_DEPTH, SHORT_DEPTH, _clearance_depth, _hedge, dress,
+)
 from pipeline.planning.graph import plan_with_llm
 from pipeline.planning.layout import GAP, MARGIN, MAX_MAP, MIN_MAP, LayoutError, RoomRect, build_layout
 from pipeline.planning.models import RoomTopologyGraph, validate_with_catalog
@@ -282,13 +284,33 @@ def test_spawner_and_dressing(name):
                 assert all(objects[cr + dr][cc + dc] == 0 for dc in (-1, 0, 1) for dr in (-1, 0, 1))
         for c, r in layout.corridor_cells:
             assert objects[r][c] == 0
-        # Wilderness encloses the playable area: every other cell is blocked,
-        # and nothing outside the rooms and corridors is reachable.
+        # The hedge encloses the playable area: nothing outside the rooms and
+        # corridors is reachable. Low blockers in front, open front zone.
         playable = layout.playable_cells
+        depth = _clearance_depth(playable)
+        hedge = _hedge(playable, layout.width, layout.height, depth)
+        low = {i for g in FULL_DIGEST.groups if g.family in LOW_FAMILIES for i in g.tile_ids}
+        front: dict = {}
         for r in range(layout.height):
             for c in range(layout.width):
-                if (c, r) not in playable:
-                    assert objects[r][c] and not walkable[objects[r][c]], (seed, c, r)
+                if (c, r) in playable:
+                    continue
+                tile, d = objects[r][c], depth.get((c, r))
+                if (c, r) in hedge:
+                    assert tile and not walkable[tile], (seed, c, r)
+                    if d is not None and d <= SHORT_DEPTH:
+                        assert tile in low, (seed, c, r)
+                        assert any((c + dc, r + dr) in playable for dc in (-1, 0, 1) for dr in (-1, 0, 1))
+                        front[(c, r)] = tile
+                elif d is not None:
+                    assert tile == 0 or walkable[tile], (seed, c, r)
+                else:
+                    assert tile and not walkable[tile], (seed, c, r)
+        for (c, r), tile in front.items():  # no identical variants side by side along the front hedge
+            assert all(front.get((c + dc, r + dr)) != tile for dc in (-1, 0, 1) for dr in (-1, 0, 1) if (dc, dr) != (0, 0))
+        blocked = {(r, c) for r, row in enumerate(objects) for c, v in enumerate(row) if v and not walkable[v]}
+        seen = reachable(layout.width, layout.height, blocked, (spawn[1], spawn[0]))
+        assert {(c, r) for r, c in seen} <= playable
         assert outcome.report["passed"]
 
 
@@ -404,10 +426,14 @@ def test_validator_path_and_room_reachability(good):
 
 def test_validator_boundary_integrity(good):
     plan = copy.deepcopy(good.plan)
-    plan["layers"][1]["grid"][0][3] = FLOWER  # walkable decoration on the edge
+    plan["layers"][1]["grid"][0][3] = FLOWER  # walkable but unreachable edge cell: fine
+    assert validate_plan(plan, FULL, good.layout.rooms)["passed"]
+    spawn = _entity(plan, "PlayerSpawn")
+    for r in range(spawn["row"]):  # open a lane from the spawn to the top edge
+        plan["layers"][1]["grid"][r][spawn["col"]] = 0
     report = validate_plan(plan, FULL, good.layout.rooms)
     assert _failing(report) == {"boundary_integrity"}
-    assert "(3, 0)" in next(c["detail"] for c in report["checks"] if c["name"] == "boundary_integrity")
+    assert f"({spawn['col']}, 0)" in next(c["detail"] for c in report["checks"] if c["name"] == "boundary_integrity")
 
 
 def test_validator_rooms_layout(good):
@@ -418,3 +444,122 @@ def test_validator_rooms_layout(good):
     rooms = copy.deepcopy(good.layout.rooms)
     rooms[ids[0]].col = good.layout.width - 2
     assert "rooms_layout" in _failing(validate_plan(good.plan, FULL, rooms))
+
+
+# ---------------------------------------------------------------------------
+# Theme polish: prop clusters, style trees, structures
+# ---------------------------------------------------------------------------
+
+def _components(cells: set) -> list[set]:
+    """8-connected components of (col, row) cells."""
+    out, left = [], set(cells)
+    while left:
+        stack, comp = [left.pop()], set()
+        while stack:
+            c, r = stack.pop()
+            comp.add((c, r))
+            for n in [(c + dc, r + dr) for dc in (-1, 0, 1) for dr in (-1, 0, 1)]:
+                if n in left:
+                    left.discard(n)
+                    stack.append(n)
+        out.append(comp)
+    return out
+
+
+def _group_of(digest=FULL_DIGEST) -> dict:
+    return {i: g.id for g in digest.groups for i in g.tile_ids}
+
+
+@pytest.mark.parametrize("name", sorted(TOPOLOGIES))
+def test_room_props_come_in_clusters(name):
+    group_of = _group_of()
+    for seed in range(4):
+        outcome = _plan(TOPOLOGIES[name], seed)
+        objects, layout = outcome.plan["layers"][1]["grid"], outcome.layout
+        props = {(c, r) for c, r in layout.room_cells if objects[r][c]}
+        for comp in _components(props):
+            assert CLUSTER_SIZE[0] <= len(comp) <= CLUSTER_SIZE[1], (seed, comp)
+            assert len({group_of[objects[r][c]] for c, r in comp}) == 1
+
+
+def test_room_dressing_gets_its_own_clusters():
+    dressing = {"dressing": [{"tile_group": "floor.grass", "weight": 0.8}, {"tile_group": "obstacle.gravestone", "weight": 1.0}]}
+    graph = topology(*_three(), c=dressing)
+    gravestones = set(FULL_DIGEST.by_id["obstacle.gravestone"].tile_ids)
+    for seed in range(6):
+        outcome = _plan(graph, seed)
+        objects, rect = outcome.plan["layers"][1]["grid"], outcome.layout.rooms["c"]
+        cells = {(c, r) for c, r in rect.cells() if objects[r][c] in gravestones}
+        assert len(_components(cells)) >= 2, seed
+
+
+def test_wilderness_trees_follow_the_style():
+    trees = {i: g.id for g in FULL_DIGEST.groups if g.family.startswith("tree_") for i in g.tile_ids}
+    for name in ("three_line", "six_ring"):
+        outcome = _plan(TOPOLOGIES[name], 2)
+        objects, layout = outcome.plan["layers"][1]["grid"], outcome.layout
+        depth = _clearance_depth(layout.playable_cells)
+        picked = [
+            trees[objects[r][c]] for r in range(layout.height) for c in range(layout.width)
+            if (c, r) not in layout.playable_cells and (c, r) not in depth and objects[r][c] in trees
+        ]
+        assert picked and sum(g == "obstacle.tree_dead" for g in picked) / len(picked) >= 0.8
+
+
+def _with_structures() -> dict:
+    catalog = copy.deepcopy(FULL)
+    base = next(t for t in catalog["tiles"] if t["name"] == "rocks_04")
+    n = len(catalog["tiles"])
+    catalog["tiles"] += [
+        {**base, "id": n, "name": "house_00", "rect": {**base["rect"], "w": 192},
+         "tags": ["house", "tall", "structure", "footprint_3"]},
+        {**base, "id": n + 1, "name": "house_01", "tags": ["house", "structure_part"]},
+    ]
+    return catalog
+
+
+def test_digest_structure_groups():
+    digest = build_digest(_with_structures())
+    group = digest.by_id["structure.house"]
+    assert group.is_structure and group.footprint == 3 and group.tile_ids == (len(FULL["tiles"]),)
+    assert "at most once per room" in group.description
+    assert not digest.of_category("obstacle") or all(not g.is_structure for g in digest.of_category("obstacle"))
+    assert all(len(FULL["tiles"]) + 1 not in g.tile_ids for g in digest.groups)  # the slice is left out
+
+
+def test_structure_is_placed_once_on_its_footprint():
+    catalog = _with_structures()
+    house = len(FULL["tiles"])
+    dressing = {"dressing": [{"tile_group": "floor.grass", "weight": 1.0}, {"tile_group": "structure.house", "weight": 1.0},
+                             {"tile_group": "obstacle.gravestone", "weight": 0.5}]}
+    graph = topology(*_three(), c=dressing)
+    for seed in range(6):
+        outcome = _plan(graph, seed, catalog=catalog)
+        assert outcome.report["passed"]
+        objects, layout = outcome.plan["layers"][1]["grid"], outcome.layout
+        placed = [(c, r) for r, row in enumerate(objects) for c, v in enumerate(row) if v == house]
+        assert len(placed) == 1 and layout.rooms["c"].contains(placed[0])
+        c, r = placed[0]
+        footprint = [(c - 1, r + 1), (c, r), (c + 1, r - 1)]  # east diagonal, sprite on the middle cell
+        assert all(layout.rooms["c"].contains(cell) and cell not in layout.corridor_cells for cell in footprint)
+        assert objects[r + 1][c - 1] == 0 and objects[r - 1][c + 1] == 0
+
+
+def test_low_hedge_families_are_natural():
+    assert set(LOW_FAMILIES) == {"rock_small", "stump", "logs"}
+
+
+def test_hedge_encloses_a_diagonal_front_edge():
+    # A staircase room: its front (south-east on screen) edge runs diagonally.
+    playable = {(c, r) for r in range(6, 16) for c in range(6, 16) if (c - 6) + (r - 6) <= 12}
+    width = height = 24
+    depth = _clearance_depth(playable)
+    hedge = _hedge(playable, width, height, depth)
+    front = {cell for cell in hedge if depth.get(cell, SHORT_DEPTH + 1) <= SHORT_DEPTH}
+    assert front and all(  # 1 cell thick in front
+        any((c + dc, r + dr) in playable for dc in (-1, 0, 1) for dr in (-1, 0, 1)) for c, r in front
+    )
+    # Only the hedge blocks; everything else is open. Nothing outside is reachable.
+    blocked = {(r, c) for c, r in hedge}
+    seen = reachable(width, height, blocked, (10, 10))
+    assert {(c, r) for r, c in seen} == playable

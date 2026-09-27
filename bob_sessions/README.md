@@ -31,3 +31,4 @@ Each IBM Bob task has its own folder. The folder contains the prompt given to Bo
 | 10 | `10_llm_client/` | LLM client foundation: Gemini on Vertex AI, Pydantic structured output, retries, record/replay fixtures, smoke test, topology schema check. | Done (Claude Code). Location set to global. |
 | 11 | `11_pipeline2_langgraph/` | Real Pipeline 2: LangGraph topology agent, layout, spawner, dressing, validator, retry loop; UI planning steps; evaluation report. | Done (Claude Code). Browser check passed. |
 | 12 | `12_pipeline1_agents/` | Pipeline 1: tile size detection, slicing, 4 vision agents, harmonizer with LLM arbitration, legacy tilesets, cache, UI, evaluation against the Flare answer key. | Code done (Claude Code). Browser check pending. |
+| 13 | `13_theme_polish/` | Hedge wilderness, reachability boundary check, clustered themed props, multi-tile parts and structures. | Done (Claude Code). Browser check passed (asset pack and upload). |

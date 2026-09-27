@@ -24,7 +24,7 @@ from pipeline.ingestion.agents.entity import EntityRecord
 from pipeline.ingestion.contact_sheet import BATCH_SIZE, CELL, LABEL_H, make_batches, render
 from pipeline.ingestion.harmonizer import (
     anchor_from_hint, apply_arbitration, build_catalog, conflicts_of, detect_conflicts, merge, normalize_family,
-    quality_gate,
+    quality_gate, structure_role,
 )
 from pipeline.ingestion.pipeline1 import Upload, cache_key, run_pipeline1
 from pipeline.ingestion.preprocess import (
@@ -258,6 +258,26 @@ def test_merge_and_family_normalization():
 )
 def test_exclusions(overrides, reason):
     assert _merged(**overrides).excluded == reason
+
+
+@pytest.mark.parametrize(
+    "family,description,footprint,role",
+    [
+        ("wooden_shack", "wooden shack building corner", 1, "structure_part"),  # the recorded cabin slices
+        ("tent", "Canvas tent structure", 1, "structure_part"),
+        ("wooden_gate", "wooden gate entrance with tiled roof", 1, "structure_part"),
+        ("stone_wall", "Low stone wall segment", 1, "structure_part"),
+        ("house", "a small house", 3, "structure"),
+        ("stone_wall", "long stone wall", 3, None),
+        ("rock", "a rock", 1, None),
+    ],
+)
+def test_structure_role(family, description, footprint, role):
+    chip = ChipInfo(0, 0, (0, 0, 64 * footprint, 90), "contour", (32 * footprint, 74), False, footprint, [], 1, "s")
+    rec = _merged(chip, classification_agent={"family": family, "description": description})
+    assert structure_role(rec) == role
+    rec.boundary = {**rec.boundary, "kind": "multi_tile_part"}
+    assert structure_role(rec) == "structure_part"
 
 
 def test_anchor_hint_is_converted():

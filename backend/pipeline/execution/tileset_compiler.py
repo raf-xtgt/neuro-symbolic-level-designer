@@ -8,9 +8,15 @@ Reads the asset_catalog.json and produces one Tiled tileset per tile group
 
 Tiles are grouped by sprite size and anchor ``(w, h, anchor.x, anchor.y)``.
 A group is compiled when the level uses at least one of its tiles, and then
-contains every catalog tile of the group (ascending id), laid out in a single
-row so that Tiled can index them by ``gid - firstgid``. Groups are ordered by
-their smallest catalog id, so floor tiles (the first ids) get ``tileset.png``.
+contains every catalog tile of the group (ascending id), laid out in rows of
+``columns = min(tilecount, 2048 // tilewidth)`` tiles, so Tiled indexes local
+tile i at ``(i % columns, i // columns)``. Groups are ordered by their smallest
+catalog id, so floor tiles (the first ids) get ``tileset.png``.
+
+flame_tiled packs every tileset image into one atlas of at most 4096 x 4096 px
+on the web. Rows keep each image narrow; a level whose images cannot fit
+(``ATLAS_FILL`` of the atlas area, or a side above ``ATLAS_SIDE``) fails with
+``atlas_too_large`` instead of producing a bundle that crashes the game.
 
 Usage (via CLI module):
     python -m pipeline.execution.compile --plan ... --catalog ... --out ...
@@ -27,6 +33,12 @@ from pathlib import Path
 from typing import Any, Callable, Iterable
 
 from PIL import Image
+
+from pipeline.errors import StageError
+
+MAX_ROW_WIDTH = 2048  # px per tileset image row
+ATLAS_SIDE = 4096  # flame_tiled atlas limit on the web (tile_atlas.dart)
+ATLAS_FILL = 0.8  # share of the atlas area the tileset images may use
 
 GroupKey = tuple[int, int, int, int]  # (w, h, anchor.x, anchor.y)
 
@@ -110,6 +122,35 @@ def _collision_objectgroup(tile: dict[str, Any], local_id: int) -> dict[str, Any
     }
 
 
+def grid_size(tilecount: int, tilewidth: int) -> tuple[int, int]:
+    """(columns, rows) of a tileset image."""
+    columns = min(tilecount, max(1, MAX_ROW_WIDTH // tilewidth))
+    return columns, -(-tilecount // columns)
+
+
+def check_atlas(groups: list[list[dict[str, Any]]]) -> None:
+    """Raises ``atlas_too_large`` if the tileset images cannot fit in the game's atlas."""
+    total = 0
+    for tiles in groups:
+        w, h, _, _ = group_key(tiles[0])
+        columns, rows = grid_size(len(tiles), w)
+        iw, ih = columns * w, rows * h
+        if iw > ATLAS_SIDE or ih > ATLAS_SIDE:
+            raise StageError(
+                "atlas_too_large",
+                f"a tileset image of {iw} x {ih} px ({len(tiles)} tiles of {w} x {h}) exceeds the game's "
+                f"{ATLAS_SIDE} x {ATLAS_SIDE} px texture atlas",
+            )
+        total += iw * ih
+    limit = ATLAS_FILL * ATLAS_SIDE * ATLAS_SIDE
+    if total > limit:
+        raise StageError(
+            "atlas_too_large",
+            f"the tileset images need {total / 1e6:.1f} megapixels, more than {limit / 1e6:.1f} megapixels "
+            f"({ATLAS_FILL:.0%} of the game's {ATLAS_SIDE} x {ATLAS_SIDE} px texture atlas); use fewer or smaller tiles",
+        )
+
+
 def _compile_group(
     tiles: list[dict[str, Any]],
     index: int,
@@ -122,12 +163,13 @@ def _compile_group(
     w, h, ax, ay = group_key(tiles[0])
     n = len(tiles)
 
-    # 1. Packed image: one row, n columns of w x h sprites.
-    atlas = Image.new("RGBA", (w * n, h), (0, 0, 0, 0))
+    # 1. Packed image: rows of ``columns`` w x h sprites.
+    columns, rows = grid_size(n, w)
+    atlas = Image.new("RGBA", (w * columns, h * rows), (0, 0, 0, 0))
     for local_id, tile in enumerate(tiles):
         r = tile["rect"]
         region = load_source(tile["source"]).crop((r["x"], r["y"], r["x"] + w, r["y"] + h))
-        atlas.paste(region, (local_id * w, 0))
+        atlas.paste(region, ((local_id % columns) * w, (local_id // columns) * h))
     atlas.save(str(out_dir / image_name))
 
     # 2. Tile entries.
@@ -140,10 +182,10 @@ def _compile_group(
 
     # 3. The .tsj document. ``tileoffset`` is omitted when it is (0, 0).
     tsj: dict[str, Any] = {
-        "columns":      n,
+        "columns":      columns,
         "image":        image_name,
-        "imageheight":  h,
-        "imagewidth":   w * n,
+        "imageheight":  h * rows,
+        "imagewidth":   w * columns,
         "margin":       0,
         "name":         Path(json_name).stem,
         "spacing":      0,
@@ -206,6 +248,7 @@ def compile_tilesets(
     used = set(used_ids)
     used_groups = [tiles for tiles in groups.values() if any(t["id"] in used for t in tiles)]
     used_groups.sort(key=lambda tiles: tiles[0]["id"])
+    check_atlas(used_groups)
 
     sources: dict[str, Image.Image] = {}
 

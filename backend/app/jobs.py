@@ -203,6 +203,8 @@ class JobManager:
                 run_compile(
                     str(planning.plan_path), str(ingested.catalog_path), str(bundle), source_root=ingested.source_root,
                 )
+            except StageError:
+                raise
             except Exception as exc:
                 raise StageError("execution_failed", str(exc)) from exc
             for path in planning.extra_files:

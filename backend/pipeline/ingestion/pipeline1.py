@@ -44,7 +44,7 @@ from pipeline.llm.base import LLMProvider
 from pipeline.llm.config import setting, vision_thinking_level
 from pipeline.llm.usage import UsageTracker
 
-PIPELINE1_VERSION = "1"
+PIPELINE1_VERSION = "2"
 DEFAULT_CONCURRENCY = 6
 OUTPUT_FILES = ("asset_catalog.json", "ingestion_report.json", "contact_sheet.png", ATLAS_NAME)
 
