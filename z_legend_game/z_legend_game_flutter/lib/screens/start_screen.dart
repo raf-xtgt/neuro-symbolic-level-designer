@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../designer/level_designer_screen.dart';
 import 'game_screen.dart';
 
-/// Start screen with the game title, "Level Designer" and "Play starter
+/// Start screen with the product name, "Level Designer" and "Play starter
 /// level" buttons.
 class StartScreen extends StatelessWidget {
   const StartScreen({super.key});
@@ -24,13 +24,17 @@ class StartScreen extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              'Z Legend',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 48,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 4,
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24),
+              child: Text(
+                'Neuro Symbolic Game Level Designer',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 36,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1,
+                ),
               ),
             ),
             const SizedBox(height: 48),

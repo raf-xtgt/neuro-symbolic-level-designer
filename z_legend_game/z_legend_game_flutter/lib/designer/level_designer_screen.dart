@@ -107,22 +107,14 @@ String _errorText(JobStatus status) {
   };
 }
 
-/// The optional and upload file inputs, with their limits.
-enum _FileInput {
-  spritesheets('spritesheets', ['png'], 10),
-  tilesets('tilesets', ['tsx', 'tsj'], 10),
-  maps('maps', ['tmx', 'tmj'], 5);
+/// Spritesheet uploads: multipart field name (also the key of its errors),
+/// allowed extensions, and the most files per request.
+const String _sheetsField = 'spritesheets';
+const List<String> _sheetExtensions = ['png'];
+const int _maxSheets = 10;
 
-  const _FileInput(this.field, this.extensions, this.maxCount);
-
-  /// Multipart field name, also the key of its errors.
-  final String field;
-  final List<String> extensions;
-  final int maxCount;
-}
-
-/// Level Designer: prompt + spritesheet source + optional files in, the
-/// 3 pipeline stages and the generated level out, with **Try Out** to play it.
+/// Level Designer: prompt + optional spritesheets in, the 3 pipeline stages
+/// and the generated level out, with **Try Out** to play it.
 class LevelDesignerScreen extends StatefulWidget {
   const LevelDesignerScreen({
     super.key,
@@ -152,9 +144,7 @@ class _LevelDesignerScreenState extends State<LevelDesignerScreen> {
   // Loaded once to detect an offline backend; the level always uses the
   // uploads, or the default grassland pack without uploads.
   List<AssetPack>? _packs;
-  final Map<_FileInput, List<LevelFile>> _files = {
-    for (final input in _FileInput.values) input: [],
-  };
+  final List<LevelFile> _sheets = [];
 
   // Errors, keyed by input (`prompt`, `asset_pack`, `spritesheets`, ...).
   Map<String, List<String>> _errors = {};
@@ -219,22 +209,19 @@ class _LevelDesignerScreenState extends State<LevelDesignerScreen> {
     if (prompt.length > _maxPromptChars) {
       add('prompt', 'Use at most $_maxPromptChars characters.');
     }
-    for (final input in _FileInput.values) {
-      final files = _files[input]!;
-      if (files.length > input.maxCount) {
-        add(input.field, 'At most ${input.maxCount} files are allowed.');
+    if (_sheets.length > _maxSheets) {
+      add(_sheetsField, 'At most $_maxSheets files are allowed.');
+    }
+    for (final f in _sheets) {
+      final ext = f.name.split('.').last.toLowerCase();
+      if (!f.name.contains('.') || !_sheetExtensions.contains(ext)) {
+        add(
+          _sheetsField,
+          '${f.name}: must be ${_sheetExtensions.map((e) => '.$e').join(' or ')}.',
+        );
       }
-      for (final f in files) {
-        final ext = f.name.split('.').last.toLowerCase();
-        if (!f.name.contains('.') || !input.extensions.contains(ext)) {
-          add(
-            input.field,
-            '${f.name}: must be ${input.extensions.map((e) => '.$e').join(' or ')}.',
-          );
-        }
-        if (f.bytes.length > _maxFileBytes) {
-          add(input.field, '${f.name}: larger than 10 MB.');
-        }
+      if (f.bytes.length > _maxFileBytes) {
+        add(_sheetsField, '${f.name}: larger than 10 MB.');
       }
     }
     return errors;
@@ -242,14 +229,14 @@ class _LevelDesignerScreenState extends State<LevelDesignerScreen> {
 
   // -- Actions ----------------------------------------------------------
 
-  Future<void> _pick(_FileInput input) async {
+  Future<void> _pickSheets() async {
     final picked = await (widget.pickFiles ?? _pickWithFilePicker)(
-      input.extensions,
+      _sheetExtensions,
     );
     if (!mounted || picked.isEmpty) return;
     setState(() {
-      _files[input]!.addAll(picked);
-      _errors.remove(input.field);
+      _sheets.addAll(picked);
+      _errors.remove(_sheetsField);
     });
   }
 
@@ -269,16 +256,13 @@ class _LevelDesignerScreenState extends State<LevelDesignerScreen> {
       _preview = null;
       _contactSheet = null;
     });
-    final sheets = _files[_FileInput.spritesheets]!;
     try {
       final job = await _api!.createLevel(
         LevelRequest(
           prompt: _prompt.text.trim(),
           planner: Planner.agentic,
-          assetPack: sheets.isEmpty ? defaultAssetPack : null,
-          spritesheets: sheets,
-          tilesets: _files[_FileInput.tilesets]!,
-          maps: _files[_FileInput.maps]!,
+          assetPack: _sheets.isEmpty ? defaultAssetPack : null,
+          spritesheets: List.of(_sheets),
         ),
       );
       if (!mounted) return;
@@ -442,11 +426,6 @@ class _LevelDesignerScreenState extends State<LevelDesignerScreen> {
           _uploadInput(),
           _ErrorList(_errors['asset_pack']),
           _ErrorList(_errors['planner']),
-          const SizedBox(height: 16),
-          const _Heading('Optional'),
-          _fileInput(_FileInput.tilesets, 'Existing tilesets (.tsx, .tsj)'),
-          const SizedBox(height: 8),
-          _fileInput(_FileInput.maps, 'Existing maps (.tmx, .tmj)'),
           const SizedBox(height: 24),
           if (_requestError != null) ...[
             Text(
@@ -485,21 +464,21 @@ class _LevelDesignerScreenState extends State<LevelDesignerScreen> {
           style: TextStyle(color: Colors.white70, fontSize: 12),
         ),
         const SizedBox(height: 8),
-        _fileInput(_FileInput.spritesheets, 'Spritesheets (PNG, up to 10)'),
+        _sheetsInput(),
       ],
     );
   }
 
-  Widget _fileInput(_FileInput input, String label) {
-    final files = _files[input]!;
+  Widget _sheetsInput() {
+    final files = _sheets;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
           children: [
-            Expanded(child: Text(label)),
+            const Expanded(child: Text('Spritesheets (PNG, up to 10)')),
             TextButton.icon(
-              onPressed: () => _pick(input),
+              onPressed: _pickSheets,
               icon: const Icon(Icons.attach_file),
               label: const Text('Add files'),
             ),
@@ -518,7 +497,7 @@ class _LevelDesignerScreenState extends State<LevelDesignerScreen> {
               onPressed: () => setState(() => files.removeAt(i)),
             ),
           ),
-        _ErrorList(_errors[input.field]),
+        _ErrorList(_errors[_sheetsField]),
       ],
     );
   }
@@ -570,10 +549,6 @@ class _LevelDesignerScreenState extends State<LevelDesignerScreen> {
     final summary = status.summary;
     String counts(Map<String, int> m) =>
         m.entries.map((e) => '${e.key}: ${e.value}').join(', ');
-    String legacy(Map<String, dynamic> f) => f['kind'] == 'tileset'
-        ? '${f['file_name']} (tileset, ${f['tile_count']} tiles)'
-        : '${f['file_name']} (map, ${f['width']} x ${f['height']}, '
-              '${f['layer_count']} layers)';
 
     return [
       const SizedBox(height: 24),
@@ -616,22 +591,6 @@ class _LevelDesignerScreenState extends State<LevelDesignerScreen> {
         ),
         _SummaryLine('Tiles by material', counts(summary.tilesByMaterial)),
         _SummaryLine('Entities by type', counts(summary.entitiesByType)),
-        _SummaryLine(
-          'Legacy files',
-          summary.legacyFiles.isEmpty
-              ? 'none'
-              : summary.legacyFiles.map(legacy).join('\n'),
-        ),
-        if (summary.planner != null)
-          _SummaryLine(
-            'Planner',
-            Planner.values
-                .firstWhere(
-                  (p) => p.id == summary.planner,
-                  orElse: () => Planner.placeholder,
-                )
-                .label,
-          ),
         if (summary.designNotes case final notes? when notes.isNotEmpty)
           _SummaryLine('Design notes', notes),
         if (summary.rooms.isNotEmpty)

@@ -1,11 +1,11 @@
 {
-    "name": "z_legend_game_flutter",
-    "short_name": "z_legend_game_flutter",
+    "name": "Neuro Symbolic Game Level Designer",
+    "short_name": "Level Designer",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Describe a level in words; AI agents plan it and algorithms build a playable isometric Flame level.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

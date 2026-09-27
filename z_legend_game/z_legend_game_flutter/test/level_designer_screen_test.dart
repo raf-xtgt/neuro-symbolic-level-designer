@@ -244,6 +244,10 @@ void main() {
     await _pump(tester, api);
     expect(find.byKey(const Key('asset_pack')), findsNothing);
     expect(find.byKey(const Key('planner')), findsNothing);
+    expect(find.text('Optional'), findsNothing);
+    expect(find.text('Existing tilesets (.tsx, .tsj)'), findsNothing);
+    expect(find.text('Existing maps (.tmx, .tmj)'), findsNothing);
+    expect(find.text('Add files'), findsOneWidget, reason: 'spritesheets only');
     expect(
       find.text(
         'Upload your isometric spritesheets (PNG). If you do not upload '
@@ -260,6 +264,8 @@ void main() {
     expect(api.lastRequest?.assetPack, 'grassland_full');
     expect(api.lastRequest?.spritesheets, isEmpty);
     expect(api.lastRequest?.planner, Planner.agentic);
+    expect(api.lastRequest?.tilesets, isEmpty);
+    expect(api.lastRequest?.maps, isEmpty);
     expect(_stateOf(tester, '1. Data Ingestion'), 'running');
     expect(find.text('Try Out'), findsNothing);
 
@@ -517,7 +523,9 @@ void main() {
       find.text('2 calls, 3600 input + 5000 output tokens, 24.0 s'),
       findsOneWidget,
     );
-    expect(find.text('AI planner (Gemini)'), findsWidgets);
+    // The planner is always the AI planner: no Planner row in the result.
+    expect(find.text('Planner'), findsNothing);
+    expect(find.text('AI planner (Gemini)'), findsNothing);
     expect(find.text('Try Out'), findsOneWidget);
   });
 

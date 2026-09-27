@@ -7,7 +7,8 @@ void main() {
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(const ZLegendApp());
-    expect(find.text('Z Legend'), findsOneWidget);
+    expect(find.text('Neuro Symbolic Game Level Designer'), findsOneWidget);
+    expect(find.text('Z Legend'), findsNothing);
     expect(find.text('Level Designer'), findsOneWidget);
     expect(find.text('Play starter level'), findsOneWidget);
   });

@@ -12,7 +12,7 @@ class ZLegendApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Z Legend',
+      title: 'Neuro Symbolic Game Level Designer',
       theme: ThemeData.dark(),
       home: const StartScreen(),
     );
