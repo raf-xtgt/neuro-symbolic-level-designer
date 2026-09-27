@@ -27,6 +27,7 @@ JobStatus _job(
   List<StageState> stages, {
   String? errorCode,
   JobSummary? summary,
+  List<PlanningStep> steps = const [],
 }) => JobStatus(
   jobId: 'abc',
   status: status,
@@ -35,6 +36,53 @@ JobStatus _job(
   errorCode: errorCode,
   errorMessage: errorCode == null ? null : 'server message',
   summary: summary,
+  planningSteps: steps,
+);
+
+const _steps = [
+  PlanningStep(
+    node: 'topology_agent',
+    status: 'failed',
+    attempt: 1,
+    message: 'tile_group_exists: unknown tile group gravestones',
+  ),
+  PlanningStep(
+    node: 'topology_agent',
+    status: 'done',
+    attempt: 2,
+    message: '4 rooms, 9 enemies',
+  ),
+  PlanningStep(
+    node: 'validator',
+    status: 'done',
+    attempt: 1,
+    message: 'all checks passed',
+  ),
+];
+
+const _agenticSummary = JobSummary(
+  mapWidth: 30,
+  mapHeight: 32,
+  tilesByMaterial: {'grass': 900},
+  entitiesByType: {'Zombie': 9},
+  planner: 'agentic',
+  designNotes: 'A graveyard around a cabin, the boss waits in the north.',
+  rooms: [
+    RoomSummary(
+      id: 'r1',
+      purpose: 'entrance',
+      size: 'small',
+      description: 'The cemetery gate.',
+      enemyCount: 0,
+    ),
+  ],
+  validation: ValidationReport(passed: true, checks: []),
+  llmUsage: LlmUsage(
+    calls: 2,
+    inputTokens: 3600,
+    outputTokens: 5000,
+    latencyMs: 24000,
+  ),
 );
 
 const _summary = JobSummary(
@@ -227,6 +275,137 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Try Out'), findsNothing);
+  });
+
+  testWidgets('agentic planning shows sub-steps and the validation badge', (
+    tester,
+  ) async {
+    final api = _FakeApi(
+      jobs: [
+        _job('planning', [
+          StageState.done,
+          StageState.running,
+          StageState.pending,
+        ], steps: _steps.sublist(0, 1)),
+        _job(
+          'done',
+          [StageState.done, StageState.done, StageState.done],
+          summary: _agenticSummary,
+          steps: _steps,
+        ),
+      ],
+    );
+    await _pump(tester, api);
+    await tester.enterText(find.byKey(const Key('prompt')), 'graveyard');
+    await _tap(tester, find.text('Generate level'));
+    await tester.pump();
+
+    expect(api.lastRequest?.planner, Planner.agentic);
+    expect(_stateOf(tester, '2. Level Planning'), 'running');
+    expect(
+      find.text(
+        'Topology agent (AI) (attempt 1): tile_group_exists: unknown tile '
+        'group gravestones',
+      ),
+      findsOneWidget,
+    );
+
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump();
+    expect(
+      find.text('Topology agent (AI) (attempt 2): 4 rooms, 9 enemies'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Validator (attempt 1): all checks passed'),
+      findsOneWidget,
+    );
+    expect(find.text('Validation passed'), findsOneWidget);
+    expect(
+      find.text('A graveyard around a cabin, the boss waits in the north.'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('r1: entrance, small, 0 enemies - The cemetery gate.'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('2 calls, 3600 input + 5000 output tokens, 24.0 s'),
+      findsOneWidget,
+    );
+    expect(find.text('AI planner (Gemini)'), findsWidgets);
+    expect(find.text('Try Out'), findsOneWidget);
+  });
+
+  testWidgets('failed validation shows the failing checks', (tester) async {
+    final api = _FakeApi(
+      jobs: [
+        _job(
+          'failed',
+          [StageState.done, StageState.failed, StageState.pending],
+          errorCode: 'plan_validation_failed',
+          steps: _steps.sublist(0, 1),
+          summary: const JobSummary(
+            planner: 'agentic',
+            validation: ValidationReport(
+              passed: false,
+              checks: [
+                ValidationCheck(
+                  name: 'rooms_reachable',
+                  passed: false,
+                  detail: 'room r4 unreachable',
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+    await _pump(tester, api);
+    await tester.enterText(find.byKey(const Key('prompt')), 'graveyard');
+    await _tap(tester, find.text('Generate level'));
+    await tester.pump();
+
+    expect(
+      find.text(
+        'No valid level after all planning attempts. Try a simpler prompt.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Validation failed'), findsOneWidget);
+    expect(find.text('rooms_reachable: room r4 unreachable'), findsOneWidget);
+    expect(find.text('Try Out'), findsNothing);
+  });
+
+  testWidgets('placeholder planner choice and LLM error message', (
+    tester,
+  ) async {
+    final api = _FakeApi(
+      jobs: [
+        _job('failed', [
+          StageState.done,
+          StageState.failed,
+          StageState.pending,
+        ], errorCode: 'llm_unavailable'),
+      ],
+    );
+    await _pump(tester, api);
+    await tester.enterText(find.byKey(const Key('prompt')), 'graveyard');
+    await _tap(tester, find.byKey(const Key('planner')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Placeholder').last);
+    await tester.pumpAndSettle();
+    await _tap(tester, find.text('Generate level'));
+    await tester.pump();
+
+    expect(api.lastRequest?.planner, Planner.placeholder);
+    expect(
+      find.text(
+        'The AI planner could not reach the model. Try again, or choose the '
+        'Placeholder planner. (server message)',
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('backend offline shows the retry message', (tester) async {

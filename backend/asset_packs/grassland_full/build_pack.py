@@ -61,6 +61,35 @@ INCLUDED: dict[str, tuple[str, bool, str, list[str]]] = {
 FENCE_FLARE_IDS = range(104, 112)
 FENCE_TAG = "fence"
 
+# Family tags: one per placeable tile, so the planner can ask for specific
+# things (tile groups ``obstacle.gravestone``, ``decoration.flower``, ...).
+# Section slug -> list of (first index, last index, family), by the index nn
+# in the tile name ``<section>_<nn>``.
+FAMILIES: dict[str, list[tuple[int, int, str]]] = {
+    "town_objects": [
+        (0, 1, "cart"), (2, 3, "sack"), (4, 5, "logs"), (6, 6, "campfire"), (7, 7, "anvil"),
+        (8, 15, "fence"),
+    ],
+    "rocks": [(0, 3, "rock_small"), (4, 7, "rock_pillar")],
+    "tall_town_objects": [(0, 1, "stump"), (2, 3, "signpost"), (4, 7, "gravestone")],
+    "blue_trees": [(0, 3, "tree_blue")],
+    "dead_trees": [(0, 3, "tree_dead")],
+    "tall_trees": [(0, 3, "tree_tall")],
+    "fluffy_trees": [(0, 3, "tree_fluffy")],
+    "shrubs_and_grass_tufts": [
+        (0, 1, "fern"), (2, 3, "weed"), (4, 5, "leafy_plant"), (6, 7, "flower"),
+        (8, 11, "bush"), (12, 15, "dry_grass"),
+    ],
+}
+
+
+def family_tag(section: str, index: int) -> str | None:
+    for first, last, family in FAMILIES.get(section, []):
+        if first <= index <= last:
+            return family
+    return None
+
+
 # Section slug -> reason it is left out.
 EXCLUDED: dict[str, str] = {
     "tents": "multi-tile assembly",
@@ -113,6 +142,9 @@ def build(out_dir: Path) -> None:
         }
         if t.flare_id in FENCE_FLARE_IDS:
             tags = [*tags, FENCE_TAG]
+        family = family_tag(t.section, nn)
+        if family and family not in tags:
+            tags = [*tags, family]
         if tags:
             tile["tags"] = list(tags)
         tile["source_ref"] = f"flare:tile={t.flare_id}"

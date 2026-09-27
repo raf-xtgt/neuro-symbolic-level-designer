@@ -36,7 +36,8 @@ class LevelApi {
 
   Future<CreateJobResult> createLevel(LevelRequest request) async {
     final multipart = http.MultipartRequest('POST', _url('/api/levels'))
-      ..fields['prompt'] = request.prompt;
+      ..fields['prompt'] = request.prompt
+      ..fields['planner'] = request.planner.id;
     if (request.assetPack != null) {
       multipart.fields['asset_pack'] = request.assetPack!;
     }

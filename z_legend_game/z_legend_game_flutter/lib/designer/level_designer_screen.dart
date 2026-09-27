@@ -33,6 +33,38 @@ const Map<String, String> _stageLabels = {
   'executing': '3. Execution',
 };
 
+/// Pipeline 2 graph nodes (`planning_steps`).
+const Map<String, String> _nodeLabels = {
+  'topology_agent': 'Topology agent (AI)',
+  'layout_builder': 'Layout builder',
+  'stacking': 'Stacking',
+  'spawner': 'Spawner',
+  'dressing': 'Dressing',
+  'validator': 'Validator',
+};
+
+/// Friendly text for a failed job, by error code.
+String _errorText(JobStatus status) {
+  final message = status.errorMessage ?? 'Generation failed.';
+  return switch (status.errorCode) {
+    'ingestion_not_implemented' =>
+      'Spritesheet ingestion is not available yet. Choose a built-in asset '
+          'pack.',
+    'llm_unavailable' =>
+      'The AI planner could not reach the model. Try again, or choose the '
+          'Placeholder planner. ($message)',
+    'llm_output_invalid' =>
+      'The AI planner returned an invalid room graph. Try again or rephrase '
+          'the prompt. ($message)',
+    'llm_config' =>
+      'The AI planner is not configured on the server (backend .env). Choose '
+          'the Placeholder planner. ($message)',
+    'plan_validation_failed' =>
+      'No valid level after all planning attempts. Try a simpler prompt.',
+    _ => message,
+  };
+}
+
 /// The optional and upload file inputs, with their limits.
 enum _FileInput {
   spritesheets('spritesheets', ['png'], 10),
@@ -68,6 +100,7 @@ class _LevelDesignerScreenState extends State<LevelDesignerScreen> {
 
   // Inputs.
   bool _useUpload = false;
+  Planner _planner = Planner.agentic;
   List<AssetPack>? _packs;
   String? _packId;
   final Map<_FileInput, List<LevelFile>> _files = {
@@ -200,6 +233,7 @@ class _LevelDesignerScreenState extends State<LevelDesignerScreen> {
       final job = await _api!.createLevel(
         LevelRequest(
           prompt: _prompt.text.trim(),
+          planner: _planner,
           assetPack: _useUpload ? null : _packId,
           spritesheets: _useUpload ? _files[_FileInput.spritesheets]! : [],
           tilesets: _files[_FileInput.tilesets]!,
@@ -363,6 +397,19 @@ class _LevelDesignerScreenState extends State<LevelDesignerScreen> {
           ),
           if (_useUpload) _uploadInput() else _packInput(),
           const SizedBox(height: 16),
+          const _Heading('Planner'),
+          DropdownButtonFormField<Planner>(
+            key: const Key('planner'),
+            initialValue: _planner,
+            decoration: const InputDecoration(border: OutlineInputBorder()),
+            items: [
+              for (final p in Planner.values)
+                DropdownMenuItem(value: p, child: Text(p.label)),
+            ],
+            onChanged: (p) => setState(() => _planner = p ?? Planner.agentic),
+          ),
+          _ErrorList(_errors['planner']),
+          const SizedBox(height: 16),
           const _Heading('Optional'),
           _fileInput(_FileInput.tilesets, 'Existing tilesets (.tsx, .tsj)'),
           const SizedBox(height: 8),
@@ -490,20 +537,24 @@ class _LevelDesignerScreenState extends State<LevelDesignerScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const _Heading('Progress'),
-          for (final stage in jobStages)
+          for (final stage in jobStages) ...[
             _StageRow(
               label: _stageLabels[stage]!,
               state: status?.stages[stage] ?? StageState.pending,
             ),
+            if (stage == 'planning' && status != null)
+              for (final step in status.planningSteps) _PlanningStepRow(step),
+          ],
           if (status != null && status.isFailed) ...[
             const SizedBox(height: 12),
             Text(
-              status.errorCode == 'ingestion_not_implemented'
-                  ? 'Spritesheet ingestion is not available yet. Choose a '
-                        'built-in asset pack.'
-                  : status.errorMessage ?? 'Generation failed.',
+              _errorText(status),
               style: const TextStyle(color: Colors.redAccent),
             ),
+            if (status.summary?.validation case final report?) ...[
+              const SizedBox(height: 8),
+              _ValidationBadge(report),
+            ],
           ],
           if (status != null && status.warnings.isNotEmpty) ...[
             const SizedBox(height: 12),
@@ -553,6 +604,41 @@ class _LevelDesignerScreenState extends State<LevelDesignerScreen> {
               ? 'none'
               : summary.legacyFiles.map(legacy).join('\n'),
         ),
+        if (summary.planner != null)
+          _SummaryLine(
+            'Planner',
+            Planner.values
+                .firstWhere(
+                  (p) => p.id == summary.planner,
+                  orElse: () => Planner.placeholder,
+                )
+                .label,
+          ),
+        if (summary.designNotes case final notes? when notes.isNotEmpty)
+          _SummaryLine('Design notes', notes),
+        if (summary.rooms.isNotEmpty)
+          _SummaryLine(
+            'Rooms',
+            summary.rooms
+                .map(
+                  (r) =>
+                      '${r.id}: ${r.purpose}, ${r.size}, '
+                      '${r.enemyCount} ${r.enemyCount == 1 ? 'enemy' : 'enemies'}'
+                      '${r.description.isEmpty ? '' : ' - ${r.description}'}',
+                )
+                .join('\n'),
+          ),
+        if (summary.llmUsage case final usage?)
+          _SummaryLine(
+            'LLM usage',
+            '${usage.calls} ${usage.calls == 1 ? 'call' : 'calls'}, '
+                '${usage.inputTokens} input + ${usage.outputTokens} output '
+                'tokens, ${(usage.latencyMs / 1000).toStringAsFixed(1)} s',
+          ),
+        if (summary.validation case final report?) ...[
+          const SizedBox(height: 8),
+          _ValidationBadge(report),
+        ],
       ],
       const SizedBox(height: 16),
       ElevatedButton.icon(
@@ -651,6 +737,81 @@ class _StageRow extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(child: Text(label)),
           Text(state.name, style: const TextStyle(color: Colors.white70)),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlanningStepRow extends StatelessWidget {
+  const _PlanningStepRow(this.step);
+
+  final PlanningStep step;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = _nodeLabels[step.node] ?? step.node;
+    return Padding(
+      padding: const EdgeInsets.only(left: 36, top: 2, bottom: 2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            step.failed ? Icons.error_outline : Icons.check,
+            size: 16,
+            color: step.failed ? Colors.orangeAccent : Colors.green,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '$label (attempt ${step.attempt}): ${step.message}',
+              style: const TextStyle(fontSize: 13, color: Colors.white70),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ValidationBadge extends StatelessWidget {
+  const _ValidationBadge(this.report);
+
+  final ValidationReport report;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = report.passed ? Colors.green : Colors.redAccent;
+    return Container(
+      key: const Key('validation_badge'),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        border: Border.all(color: color),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                report.passed ? Icons.verified : Icons.gpp_bad,
+                color: color,
+                size: 18,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                report.passed ? 'Validation passed' : 'Validation failed',
+                style: TextStyle(color: color, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          for (final check in report.failed)
+            Text(
+              '${check.name}: ${check.detail}',
+              style: const TextStyle(color: Colors.redAccent),
+            ),
         ],
       ),
     );

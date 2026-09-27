@@ -25,6 +25,8 @@ from app.models import (
     ValidationErrors,
 )
 from app.uploads import MAX_FILE_BYTES, check_map, check_png, check_tileset
+from pipeline.llm.base import LLMProvider
+from pipeline.planning.run import DEFAULT_PLANNER, PLANNERS
 
 MAX_PROMPT_CHARS = 2000
 FILE_LIMITS = {"spritesheets": 10, "tilesets": 10, "maps": 5}
@@ -39,8 +41,11 @@ def _errors(errors: list[FieldError]) -> JSONResponse:
 
 
 def create_app(
-    data_dir: Path = BACKEND_DIR / "data", packs_dir: Path = DEFAULT_PACKS_DIR
+    data_dir: Path = BACKEND_DIR / "data",
+    packs_dir: Path = DEFAULT_PACKS_DIR,
+    llm_provider: LLMProvider | None = None,
 ) -> FastAPI:
+    """``llm_provider``: for tests (replay); None = configured by ``LLM_MODE``."""
     app = FastAPI(title="Neuro-Symbolic Level Designer")
     app.add_middleware(
         CORSMiddleware,
@@ -49,7 +54,7 @@ def create_app(
         allow_headers=["*"],
     )
     packs = discover_packs(packs_dir)
-    jobs = JobManager(data_dir)
+    jobs = JobManager(data_dir, llm_provider=llm_provider)
 
     @app.exception_handler(RequestValidationError)
     async def _validation_handler(_: Request, exc: RequestValidationError) -> JSONResponse:
@@ -134,6 +139,12 @@ def create_app(
                 else:
                     uploads[name].append(Upload(original_name=original, ext=ext, data=data))
 
+        # planner
+        planner = form.get("planner")
+        planner = planner.strip() if isinstance(planner, str) and planner.strip() else DEFAULT_PLANNER
+        if planner not in PLANNERS:
+            err("planner", f"unknown planner; use one of: {', '.join(PLANNERS)}")
+
         # spritesheet source
         pack_id = form.get("asset_pack")
         pack_id = pack_id.strip() if isinstance(pack_id, str) else pack_id
@@ -163,6 +174,7 @@ def create_app(
                 tilesets=uploads["tilesets"],
                 maps=uploads["maps"],
                 warnings=warnings,
+                planner=planner,
             )
         )
         return LevelCreated(

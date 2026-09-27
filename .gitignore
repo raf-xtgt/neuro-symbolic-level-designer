@@ -60,3 +60,4 @@ game-assets/death_city.zip
 
 # ── Backend job data (generated levels) ───────────────────────────────────────
 backend/data/
+creds.json

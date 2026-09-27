@@ -109,6 +109,7 @@ void main() {
     final body = latin1.decode(sent.bodyBytes);
     expect(body, contains('name="prompt"\r\n\r\ngraveyard with a cabin'));
     expect(body, contains('name="asset_pack"\r\n\r\ngrassland_starter'));
+    expect(body, contains('name="planner"\r\n\r\nagentic'));
     expect(body, contains('name="spritesheets"; filename="sheet.png"'));
     expect(body, contains('name="tilesets"; filename="t.tsj"'));
     expect(body, contains('name="maps"; filename="m.tmx"'));
@@ -163,6 +164,106 @@ void main() {
     expect(summary.tilesByMaterial, {'stone': 20, 'grass': 380});
     expect(summary.entitiesByType['Zombie'], 3);
     expect(summary.legacyFiles.single['tile_count'], 32);
+  });
+
+  test('getJob parses the agentic planner fields', () async {
+    final api = LevelApi(
+      _base,
+      client: MockClient(
+        (_) async => _json({
+          ..._job,
+          'planner': 'agentic',
+          'planning_steps': [
+            {
+              'node': 'topology_agent',
+              'status': 'failed',
+              'attempt': 1,
+              'message': 'tile_group_exists: unknown group',
+            },
+            {
+              'node': 'topology_agent',
+              'status': 'done',
+              'attempt': 2,
+              'message': '4 rooms, 9 enemies',
+            },
+          ],
+          'summary': {
+            ...(_job['summary'] as Map<String, dynamic>),
+            'planner': 'agentic',
+            'design_notes': 'Graves around a cabin.',
+            'rooms': [
+              {
+                'id': 'r1',
+                'purpose': 'entrance',
+                'size': 'small',
+                'relative_position': 'south',
+                'description': 'The gate.',
+                'enemy_count': 0,
+              },
+            ],
+            'validation': {
+              'passed': true,
+              'checks': [
+                {'name': 'path_spawn_exit', 'passed': true, 'detail': 'ok'},
+              ],
+              'warnings': [],
+            },
+            'llm_usage': {
+              'calls': 2,
+              'attempts': 2,
+              'input_tokens': 3600,
+              'output_tokens': 5000,
+              'latency_ms': 24000,
+            },
+            'attempts': {'topology': 2, 'layout': 1},
+          },
+        }),
+      ),
+    );
+    final job = await api.getJob('abc');
+    expect(
+      [for (final s in job.planningSteps) (s.node, s.failed)],
+      [
+        ('topology_agent', true),
+        ('topology_agent', false),
+      ],
+    );
+    final summary = job.summary!;
+    expect(summary.planner, 'agentic');
+    expect(summary.designNotes, 'Graves around a cabin.');
+    expect(summary.rooms.single.description, 'The gate.');
+    expect(summary.validation!.passed, isTrue);
+    expect(summary.validation!.failed, isEmpty);
+    expect(summary.llmUsage!.outputTokens, 5000);
+  });
+
+  test('getJob parses a failed planning run with only planner facts', () async {
+    final api = LevelApi(
+      _base,
+      client: MockClient(
+        (_) async => _json({
+          ..._job,
+          'status': 'failed',
+          'error': {'code': 'plan_validation_failed', 'message': 'x'},
+          'summary': {
+            'planner': 'agentic',
+            'validation': {
+              'passed': false,
+              'checks': [
+                {
+                  'name': 'rooms_reachable',
+                  'passed': false,
+                  'detail': 'room r4 unreachable',
+                },
+              ],
+            },
+          },
+        }),
+      ),
+    );
+    final job = await api.getJob('abc');
+    expect(job.summary!.mapWidth, 0);
+    expect(job.summary!.validation!.failed.single.name, 'rooms_reachable');
   });
 
   test('getJob parses a failed job', () async {

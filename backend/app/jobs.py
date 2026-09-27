@@ -9,6 +9,7 @@ import json
 import logging
 import os
 import re
+import shutil
 import threading
 import uuid
 from collections import Counter
@@ -21,14 +22,18 @@ from pipeline.errors import StageError
 from pipeline.execution.compile import run_compile
 from pipeline.ingestion.run import IngestionRequest, LegacyFile, run_ingestion
 from pipeline.planning.pathing import path_check
-from pipeline.planning.run import run_planning
+from pipeline.llm.base import LLMProvider
+from pipeline.planning.run import DEFAULT_PLANNER, run_planning
 
 log = logging.getLogger(__name__)
 
 STAGES = ("ingesting", "planning", "executing")
-# Bundle files that may be served: the map, its preview, and the tilesets
-# (tileset.png/.tsj, tileset_1.png/.tsj, ...). Everything else is 404.
-BUNDLE_FILE_RE = re.compile(r"level\.tmj|preview_level\.png|tileset(_\d+)?\.(png|tsj)")
+# Bundle files that may be served: the map, its preview, the tilesets
+# (tileset.png/.tsj, tileset_1.png/.tsj, ...), and the agentic planner's
+# topology graph and validation report. Everything else is 404.
+BUNDLE_FILE_RE = re.compile(
+    r"level\.tmj|preview_level\.png|tileset(_\d+)?\.(png|tsj)|topology_graph\.json|validation_report\.json"
+)
 
 
 def bundle_media_type(name: str) -> str | None:
@@ -53,6 +58,7 @@ class LevelRequest:
     tilesets: list[Upload] = field(default_factory=list)
     maps: list[Upload] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+    planner: str = DEFAULT_PLANNER
 
 
 def _now() -> str:
@@ -68,7 +74,9 @@ def parse_job_id(job_id: str) -> str | None:
 
 
 class JobManager:
-    def __init__(self, data_dir: Path):
+    def __init__(self, data_dir: Path, llm_provider: LLMProvider | None = None):
+        # llm_provider: for tests (replay); None = configured by LLM_MODE.
+        self.llm_provider = llm_provider
         self.jobs_dir = data_dir / "jobs"
         self.jobs_dir.mkdir(parents=True, exist_ok=True)
         self._executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="level-job")
@@ -139,14 +147,16 @@ class JobManager:
             "warnings": request.warnings,
             "error": None,
             "summary": None,
+            "planner": request.planner,
+            "planning_steps": [],
         }
         (job_dir / "job.json").write_text(json.dumps(job, indent=2), encoding="utf-8")
-        self._executor.submit(self._run, job_id, request.prompt, ingestion)
+        self._executor.submit(self._run, job_id, request.prompt, ingestion, request.planner)
         return job_id
 
     # -- run ---------------------------------------------------------------
 
-    def _run(self, job_id: str, prompt: str, ingestion: IngestionRequest) -> None:
+    def _run(self, job_id: str, prompt: str, ingestion: IngestionRequest, planner: str) -> None:
         job_dir = self._job_dir(job_id)
         work, bundle = job_dir / "work", job_dir / "bundle"
         stages = {s: "pending" for s in STAGES}
@@ -168,27 +178,41 @@ class JobManager:
             finish("ingesting")
 
             start("planning")
-            plan_path = run_planning(prompt, ingested.catalog_path, work)
+            planning = run_planning(
+                prompt, ingested.catalog_path, work, planner=planner,
+                on_step=lambda steps: self._update(job_id, planning_steps=steps),
+                provider=self.llm_provider,
+            )
+            if planning.warnings:
+                self._update(job_id, warnings=self.get(job_id)["warnings"] + planning.warnings)
             finish("planning")
 
             start("executing")
             try:
-                run_compile(str(plan_path), str(ingested.catalog_path), str(bundle))
+                run_compile(str(planning.plan_path), str(ingested.catalog_path), str(bundle))
             except Exception as exc:
                 raise StageError("execution_failed", str(exc)) from exc
+            for path in planning.extra_files:
+                shutil.copyfile(path, bundle / path.name)
             finish("executing")
 
-            summary = _summarize(plan_path, ingested.catalog_path, ingested.legacy_files)
+            summary = _summarize(planning.plan_path, ingested.catalog_path, ingested.legacy_files)
+            summary.update(planning.summary)
             summary["warnings"] = self.get(job_id)["warnings"]
             self._update(job_id, status="done", summary=summary)
         except Exception as exc:
+            summary = None
             if isinstance(exc, StageError):
                 error = {"code": exc.code, "message": exc.message}
+                summary = exc.details
+                for name in ("topology_graph.json", "validation_report.json"):
+                    if (work / name).is_file():
+                        shutil.copyfile(work / name, bundle / name)
             else:
                 log.exception("Job %s crashed in stage %s", job_id, stage)
                 error = {"code": "internal_error", "message": str(exc)}
             stages[stage] = "failed"
-            self._update(job_id, status="failed", stages=stages, error=error)
+            self._update(job_id, status="failed", stages=stages, error=error, summary=summary)
 
 
 def _summarize(plan_path: Path, catalog_path: Path, legacy_files: list[dict]) -> dict:

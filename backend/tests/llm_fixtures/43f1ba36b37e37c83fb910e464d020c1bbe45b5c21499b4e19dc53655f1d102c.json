@@ -1,0 +1,12 @@
+{
+  "key": "43f1ba36b37e37c83fb910e464d020c1bbe45b5c21499b4e19dc53655f1d102c",
+  "model": "gemini-3.5-flash",
+  "schema": "Ping",
+  "system": "Answer briefly.",
+  "prompt": "What is 2 + 3? Give one word that describes grass.",
+  "image_count": 0,
+  "temperature": 0.2,
+  "response_text": "{\"answer\": 5, \"word\": \"green\"}",
+  "input_tokens": 83,
+  "output_tokens": 164
+}

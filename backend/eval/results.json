@@ -1,0 +1,377 @@
+[
+  {
+    "n": 1,
+    "prompt": "graveyard with a cabin and a boss arena",
+    "passed": true,
+    "error": null,
+    "attempts": {
+      "topology": 1,
+      "layout": 1
+    },
+    "usage": {
+      "calls": 1,
+      "attempts": 1,
+      "input_tokens": 1821,
+      "output_tokens": 2714,
+      "latency_ms": 13366
+    },
+    "checks": [
+      {
+        "name": "gravestones in the rooms",
+        "passed": true,
+        "detail": "4 gravestones"
+      },
+      {
+        "name": "a boss arena",
+        "passed": true,
+        "detail": "r4"
+      },
+      {
+        "name": "a cabin (wood props or a cabin room)",
+        "passed": true,
+        "detail": "5 wood props"
+      }
+    ],
+    "steps": [
+      {
+        "node": "topology_agent",
+        "status": "done",
+        "attempt": 1,
+        "message": "4 rooms, 14 enemies"
+      },
+      {
+        "node": "layout_builder",
+        "status": "done",
+        "attempt": 1,
+        "message": "30 x 31 map, 3 corridors (seed 949659394)"
+      },
+      {
+        "node": "stacking",
+        "status": "done",
+        "attempt": 1,
+        "message": "all rooms at elevation 0"
+      },
+      {
+        "node": "spawner",
+        "status": "done",
+        "attempt": 1,
+        "message": "spawn in r1, exit in r4, 14 zombies"
+      },
+      {
+        "node": "dressing",
+        "status": "done",
+        "attempt": 1,
+        "message": "689 props and wilderness tiles placed"
+      },
+      {
+        "node": "validator",
+        "status": "done",
+        "attempt": 1,
+        "message": "all checks passed"
+      }
+    ]
+  },
+  {
+    "n": 2,
+    "prompt": "dense forest maze with a hidden treasure grove",
+    "passed": true,
+    "error": null,
+    "attempts": {
+      "topology": 1,
+      "layout": 1
+    },
+    "usage": {
+      "calls": 1,
+      "attempts": 1,
+      "input_tokens": 1821,
+      "output_tokens": 2394,
+      "latency_ms": 12427
+    },
+    "checks": [
+      {
+        "name": "a treasure room",
+        "passed": true,
+        "detail": "r4"
+      },
+      {
+        "name": "maze-like: 4+ rooms or winding corridors",
+        "passed": true,
+        "detail": "4 rooms, 2 winding corridors"
+      },
+      {
+        "name": "forest: trees in the rooms or most of the wilderness",
+        "passed": true,
+        "detail": "3 trees in rooms, 41% of the wilderness"
+      },
+      {
+        "name": "treasure room is the exit (hidden at the end)",
+        "passed": true,
+        "detail": "exit in r4"
+      }
+    ],
+    "steps": [
+      {
+        "node": "topology_agent",
+        "status": "done",
+        "attempt": 1,
+        "message": "4 rooms, 9 enemies"
+      },
+      {
+        "node": "layout_builder",
+        "status": "done",
+        "attempt": 1,
+        "message": "29 x 28 map, 3 corridors (seed 2611210308)"
+      },
+      {
+        "node": "stacking",
+        "status": "done",
+        "attempt": 1,
+        "message": "all rooms at elevation 0"
+      },
+      {
+        "node": "spawner",
+        "status": "done",
+        "attempt": 1,
+        "message": "spawn in r1, exit in r4, 9 zombies"
+      },
+      {
+        "node": "dressing",
+        "status": "done",
+        "attempt": 1,
+        "message": "603 props and wilderness tiles placed"
+      },
+      {
+        "node": "validator",
+        "status": "done",
+        "attempt": 1,
+        "message": "all checks passed"
+      }
+    ]
+  },
+  {
+    "n": 3,
+    "prompt": "open meadow with a stone plaza in the center guarded by 6 zombies",
+    "passed": true,
+    "error": null,
+    "attempts": {
+      "topology": 1,
+      "layout": 1
+    },
+    "usage": {
+      "calls": 1,
+      "attempts": 1,
+      "input_tokens": 1827,
+      "output_tokens": 2232,
+      "latency_ms": 9299
+    },
+    "checks": [
+      {
+        "name": "a room in the center",
+        "passed": true,
+        "detail": "r_plaza"
+      },
+      {
+        "name": "the center room is a stone plaza",
+        "passed": true,
+        "detail": "100% stone floor in r_plaza"
+      },
+      {
+        "name": "6 zombies at the plaza",
+        "passed": true,
+        "detail": "6 zombies in or within 2 cells of the plaza"
+      },
+      {
+        "name": "open meadow: mostly grass floors outside the plaza",
+        "passed": true,
+        "detail": "100% grass floor in the other rooms"
+      }
+    ],
+    "steps": [
+      {
+        "node": "topology_agent",
+        "status": "done",
+        "attempt": 1,
+        "message": "4 rooms, 12 enemies"
+      },
+      {
+        "node": "layout_builder",
+        "status": "done",
+        "attempt": 1,
+        "message": "32 x 32 map, 3 corridors (seed 175611485)"
+      },
+      {
+        "node": "stacking",
+        "status": "done",
+        "attempt": 1,
+        "message": "all rooms at elevation 0"
+      },
+      {
+        "node": "spawner",
+        "status": "done",
+        "attempt": 1,
+        "message": "spawn in r_entrance, exit in r_meadow_north, 12 zombies"
+      },
+      {
+        "node": "dressing",
+        "status": "done",
+        "attempt": 1,
+        "message": "763 props and wilderness tiles placed"
+      },
+      {
+        "node": "validator",
+        "status": "done",
+        "attempt": 1,
+        "message": "all checks passed"
+      }
+    ]
+  },
+  {
+    "n": 4,
+    "prompt": "a winding path through dead trees to a boss clearing in the north",
+    "passed": true,
+    "error": null,
+    "attempts": {
+      "topology": 1,
+      "layout": 1
+    },
+    "usage": {
+      "calls": 1,
+      "attempts": 1,
+      "input_tokens": 1826,
+      "output_tokens": 1926,
+      "latency_ms": 9937
+    },
+    "checks": [
+      {
+        "name": "boss room in the north",
+        "passed": true,
+        "detail": "r4"
+      },
+      {
+        "name": "the exit is in the boss room",
+        "passed": true,
+        "detail": "exit in r4"
+      },
+      {
+        "name": "winding corridors",
+        "passed": true,
+        "detail": "3 winding"
+      },
+      {
+        "name": "dead trees",
+        "passed": true,
+        "detail": "149 dead trees (the most common tree in the wilderness)"
+      }
+    ],
+    "steps": [
+      {
+        "node": "topology_agent",
+        "status": "done",
+        "attempt": 1,
+        "message": "4 rooms, 15 enemies"
+      },
+      {
+        "node": "layout_builder",
+        "status": "done",
+        "attempt": 1,
+        "message": "30 x 29 map, 3 corridors (seed 1734066725)"
+      },
+      {
+        "node": "stacking",
+        "status": "done",
+        "attempt": 1,
+        "message": "all rooms at elevation 0"
+      },
+      {
+        "node": "spawner",
+        "status": "done",
+        "attempt": 1,
+        "message": "spawn in r1, exit in r4, 15 zombies"
+      },
+      {
+        "node": "dressing",
+        "status": "done",
+        "attempt": 1,
+        "message": "646 props and wilderness tiles placed"
+      },
+      {
+        "node": "validator",
+        "status": "done",
+        "attempt": 1,
+        "message": "all checks passed"
+      }
+    ]
+  },
+  {
+    "n": 5,
+    "prompt": "small campsite with firewood and a treasure room to the east",
+    "passed": true,
+    "error": null,
+    "attempts": {
+      "topology": 1,
+      "layout": 1
+    },
+    "usage": {
+      "calls": 1,
+      "attempts": 1,
+      "input_tokens": 1824,
+      "output_tokens": 2244,
+      "latency_ms": 8797
+    },
+    "checks": [
+      {
+        "name": "campfire or firewood",
+        "passed": true,
+        "detail": "2 campfires, 0 log stacks"
+      },
+      {
+        "name": "treasure room to the east",
+        "passed": true,
+        "detail": "r_treasure"
+      },
+      {
+        "name": "small: at most 5 rooms, no large room",
+        "passed": true,
+        "detail": "4 rooms, sizes small, medium, small, small"
+      }
+    ],
+    "steps": [
+      {
+        "node": "topology_agent",
+        "status": "done",
+        "attempt": 1,
+        "message": "4 rooms, 7 enemies"
+      },
+      {
+        "node": "layout_builder",
+        "status": "done",
+        "attempt": 1,
+        "message": "27 x 25 map, 3 corridors (seed 2665973027)"
+      },
+      {
+        "node": "stacking",
+        "status": "done",
+        "attempt": 1,
+        "message": "all rooms at elevation 0"
+      },
+      {
+        "node": "spawner",
+        "status": "done",
+        "attempt": 1,
+        "message": "spawn in r_entrance, exit in r_treasure, 7 zombies"
+      },
+      {
+        "node": "dressing",
+        "status": "done",
+        "attempt": 1,
+        "message": "510 props and wilderness tiles placed"
+      },
+      {
+        "node": "validator",
+        "status": "done",
+        "attempt": 1,
+        "message": "all checks passed"
+      }
+    ]
+  }
+]

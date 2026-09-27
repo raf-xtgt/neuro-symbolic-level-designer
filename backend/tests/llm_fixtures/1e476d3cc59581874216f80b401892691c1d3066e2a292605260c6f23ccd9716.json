@@ -1,0 +1,12 @@
+{
+  "key": "1e476d3cc59581874216f80b401892691c1d3066e2a292605260c6f23ccd9716",
+  "model": "gemini-3.5-flash",
+  "schema": "RoomTopologyGraph",
+  "system": "You are the spatial topology planner of an isometric 2D level generator. Design the room graph of one level for the user's prompt: 3 to 6 rooms, exactly one room with purpose 'entrance', unique room ids, and corridors that connect every room, using only room ids you defined. style_distribution lists 2 to 5 distinct tile groups with weights from 0 to 1 that sum to 1.",
+  "prompt": "graveyard with a cabin and a boss arena",
+  "image_count": 0,
+  "temperature": 0.2,
+  "response_text": "{\"theme\":\"graveyard_cabin\",\"design_notes\":\"A spooky graveyard layout featuring an entrance gate, a central tombstone field for combat, a side path to the caretaker's wooden cabin for a puzzle key, and a final northern boss arena at the grand mausoleum.\",\"style_distribution\":[{\"tile_group\":\"floor.graveyard_dirt\",\"weight\":0.5},{\"tile_group\":\"floor.overgrown_grass\",\"weight\":0.3},{\"tile_group\":\"floor.wooden_planks\",\"weight\":0.2}],\"rooms\":[{\"id\":\"r1\",\"purpose\":\"entrance\",\"relative_position\":\"south\",\"elevation\":0,\"size\":\"medium\",\"enemy_count\":0,\"description\":\"The rusted iron gates of the old cemetery, surrounded by dead trees.\"},{\"id\":\"r2\",\"purpose\":\"combat\",\"relative_position\":\"center\",\"elevation\":0,\"size\":\"large\",\"enemy_count\":4,\"description\":\"A dense field of crumbling tombstones where restless skeletons roam.\"},{\"id\":\"r3\",\"purpose\":\"puzzle\",\"relative_position\":\"west\",\"elevation\":1,\"size\":\"small\",\"enemy_count\":1,\"dressing\":[{\"tile_group\":\"floor.wooden_planks\",\"weight\":0.8},{\"tile_group\":\"floor.graveyard_dirt\",\"weight\":0.2}],\"description\":\"The abandoned caretaker's cabin, containing a key hidden among dusty shelves.\"},{\"id\":\"r4\",\"purpose\":\"boss\",\"relative_position\":\"north\",\"elevation\":2,\"size\":\"large\",\"enemy_count\":1,\"description\":\"The grand mausoleum courtyard where the Lich awaits.\"}],\"corridors\":[{\"from_room\":\"r1\",\"to_room\":\"r2\",\"corridor_type\":\"straight\"},{\"from_room\":\"r2\",\"to_room\":\"r3\",\"corridor_type\":\"winding\"},{\"from_room\":\"r2\",\"to_room\":\"r4\",\"corridor_type\":\"bridge\"}]}",
+  "input_tokens": 1010,
+  "output_tokens": 1724
+}

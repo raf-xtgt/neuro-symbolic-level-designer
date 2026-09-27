@@ -2230,7 +2230,7 @@
             {
               "name": "tags",
               "type": "string",
-              "value": "prop"
+              "value": "prop,rock_small"
             }
           ]
         },
@@ -2265,7 +2265,7 @@
             {
               "name": "tags",
               "type": "string",
-              "value": "prop"
+              "value": "prop,rock_small"
             }
           ]
         },
@@ -2300,7 +2300,7 @@
             {
               "name": "tags",
               "type": "string",
-              "value": "prop"
+              "value": "prop,rock_small"
             }
           ]
         },
@@ -2335,7 +2335,7 @@
             {
               "name": "tags",
               "type": "string",
-              "value": "prop"
+              "value": "prop,rock_small"
             }
           ]
         },
@@ -2370,7 +2370,7 @@
             {
               "name": "tags",
               "type": "string",
-              "value": "prop"
+              "value": "prop,rock_pillar"
             }
           ]
         },
@@ -2405,7 +2405,7 @@
             {
               "name": "tags",
               "type": "string",
-              "value": "prop"
+              "value": "prop,rock_pillar"
             }
           ]
         },
@@ -2440,7 +2440,7 @@
             {
               "name": "tags",
               "type": "string",
-              "value": "prop"
+              "value": "prop,rock_pillar"
             }
           ]
         },
@@ -2475,7 +2475,7 @@
             {
               "name": "tags",
               "type": "string",
-              "value": "prop"
+              "value": "prop,rock_pillar"
             }
           ]
         },
@@ -2510,7 +2510,7 @@
             {
               "name": "tags",
               "type": "string",
-              "value": "prop,tall"
+              "value": "prop,tall,stump"
             }
           ]
         },
@@ -2545,7 +2545,7 @@
             {
               "name": "tags",
               "type": "string",
-              "value": "prop,tall"
+              "value": "prop,tall,stump"
             }
           ]
         },
@@ -2580,7 +2580,7 @@
             {
               "name": "tags",
               "type": "string",
-              "value": "prop,tall"
+              "value": "prop,tall,signpost"
             }
           ]
         },
@@ -2615,7 +2615,7 @@
             {
               "name": "tags",
               "type": "string",
-              "value": "prop,tall"
+              "value": "prop,tall,signpost"
             }
           ]
         },
@@ -2650,7 +2650,7 @@
             {
               "name": "tags",
               "type": "string",
-              "value": "prop,tall"
+              "value": "prop,tall,gravestone"
             }
           ]
         },
@@ -2685,7 +2685,7 @@
             {
               "name": "tags",
               "type": "string",
-              "value": "prop,tall"
+              "value": "prop,tall,gravestone"
             }
           ]
         },
@@ -2720,7 +2720,7 @@
             {
               "name": "tags",
               "type": "string",
-              "value": "prop,tall"
+              "value": "prop,tall,gravestone"
             }
           ]
         },
@@ -2755,7 +2755,7 @@
             {
               "name": "tags",
               "type": "string",
-              "value": "prop,tall"
+              "value": "prop,tall,gravestone"
             }
           ]
         }
@@ -2809,7 +2809,7 @@
             {
               "name": "tags",
               "type": "string",
-              "value": "tree,tall"
+              "value": "tree,tall,tree_dead"
             }
           ]
         },
@@ -2844,7 +2844,7 @@
             {
               "name": "tags",
               "type": "string",
-              "value": "tree,tall"
+              "value": "tree,tall,tree_dead"
             }
           ]
         },
@@ -2879,7 +2879,7 @@
             {
               "name": "tags",
               "type": "string",
-              "value": "tree,tall"
+              "value": "tree,tall,tree_dead"
             }
           ]
         },
@@ -2914,7 +2914,7 @@
             {
               "name": "tags",
               "type": "string",
-              "value": "tree,tall"
+              "value": "tree,tall,tree_dead"
             }
           ]
         },
@@ -2949,7 +2949,7 @@
             {
               "name": "tags",
               "type": "string",
-              "value": "tree,tall"
+              "value": "tree,tall,tree_tall"
             }
           ]
         },
@@ -2984,7 +2984,7 @@
             {
               "name": "tags",
               "type": "string",
-              "value": "tree,tall"
+              "value": "tree,tall,tree_tall"
             }
           ]
         },
@@ -3019,7 +3019,7 @@
             {
               "name": "tags",
               "type": "string",
-              "value": "tree,tall"
+              "value": "tree,tall,tree_tall"
             }
           ]
         },
@@ -3054,7 +3054,7 @@
             {
               "name": "tags",
               "type": "string",
-              "value": "tree,tall"
+              "value": "tree,tall,tree_tall"
             }
           ]
         }

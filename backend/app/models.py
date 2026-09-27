@@ -46,6 +46,13 @@ class JobError(BaseModel):
     message: str
 
 
+class PlanningStep(BaseModel):
+    node: str
+    status: Literal["done", "failed"]
+    attempt: int
+    message: str
+
+
 class JobStatus(BaseModel):
     job_id: str
     status: JobStatusName
@@ -55,3 +62,5 @@ class JobStatus(BaseModel):
     warnings: list[str]
     error: JobError | None = None
     summary: dict[str, Any] | None = None
+    planner: str | None = None
+    planning_steps: list[PlanningStep] = []

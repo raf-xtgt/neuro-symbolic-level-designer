@@ -79,14 +79,29 @@ def test_catalog_matches_answer_key(full_catalog):
     assert by_name["grass_tiles_00"]["source_ref"] == "flare:tile=16"
     assert by_name["cliffs_23"]["tags"] == ["autotile_required"]  # second "# cliffs" block
     assert by_name["water_tiles_00"]["anchor"] == {"x": 32, "y": -16}
-    assert by_name["tall_town_objects_00"]["tags"] == ["prop", "tall"]
+    assert by_name["tall_town_objects_00"]["tags"] == ["prop", "tall", "stump"]
     assert by_name["shrubs_and_grass_tufts_00"]["walkable"] is True
-    assert by_name["fluffy_trees_03"]["tags"] == ["tree", "tall"]
+    assert by_name["fluffy_trees_03"]["tags"] == ["tree", "tall", "tree_fluffy"]
     fences = [t["name"] for t in tiles if "fence" in t.get("tags", [])]
     assert fences == [f"town_objects_{i:02d}" for i in range(8, 16)]
     assert [by_name[n]["source_ref"] for n in fences] == [f"flare:tile={i}" for i in range(104, 112)]
     assert by_name["town_objects_08"]["tags"] == ["prop", "fence"]
-    assert by_name["town_objects_07"]["tags"] == ["prop"]
+    assert by_name["town_objects_07"]["tags"] == ["prop", "anvil"]
+
+
+def test_every_obstacle_and_decoration_has_one_family_tag(full_catalog):
+    generic = {"prop", "tall", "tree", "autotile_required"}
+    families = {}
+    for t in full_catalog["tiles"]:
+        if t["category"] in ("obstacle", "decoration"):
+            (family,) = [tag for tag in t["tags"] if tag not in generic]
+            families.setdefault(family, []).append(t["name"])
+    assert families["gravestone"] == [f"tall_town_objects_{i:02d}" for i in range(4, 8)]
+    assert families["rock_pillar"] == [f"rocks_{i:02d}" for i in range(4, 8)]
+    assert families["campfire"] == ["town_objects_06"]
+    assert families["dry_grass"] == [f"shrubs_and_grass_tufts_{i:02d}" for i in range(12, 16)]
+    assert {f for f in families if f.startswith("tree_")} == {"tree_blue", "tree_dead", "tree_tall", "tree_fluffy"}
+    assert len(families) == 21  # 20 planner families + fence
 
 
 def test_pack_manifest_lists_exclusions_and_empty_rects():

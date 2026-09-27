@@ -21,7 +21,8 @@ STARTER_BUNDLE = (
     BACKEND_DIR.parent / "z_legend_game" / "z_legend_game_flutter" / "assets" / "tiles" / "starter"
 )
 BUNDLE_FILES = ["level.tmj", "tileset.tsj", "tileset.png", "preview_level.png"]
-PACK = {"asset_pack": "grassland_starter"}
+# The existing job tests check placeholder output; the agentic planner has its own tests.
+PACK = {"asset_pack": "grassland_starter", "planner": "placeholder"}
 
 
 @pytest.fixture(scope="module")
@@ -174,7 +175,7 @@ def test_happy_path(client):
 
 
 def test_full_pack_job(client):
-    resp = _create(client, {"prompt": "graveyard with a cabin", "asset_pack": "grassland_full"})
+    resp = _create(client, {"prompt": "graveyard with a cabin", "asset_pack": "grassland_full", "planner": "placeholder"})
     assert resp.status_code == 202, resp.text
     created = resp.json()
     job = _wait(client, created["status_url"])

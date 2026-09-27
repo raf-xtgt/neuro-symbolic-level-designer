@@ -53,7 +53,7 @@ flowchart TD
 
     subgraph Ingestion ["2. Data Ingestion Pipeline"]
         B1["OpenCV Pre-Processor & Slicer"]
-        B2["Parallel VLM Analysis (Pydantic / Instructor)"]
+        B2["Parallel VLM Analysis (Pydantic structured output)"]
         B3["Asset Harmonizer (Code-First + LLM Resolver)"]
         B4[("Asset Catalog (asset_catalog.json)")]
     end
@@ -140,7 +140,7 @@ The deterministic pre-processor analyzes incoming files before agents start work
   * Bypasses visual guessing for pre-defined tiles.
 
 ### 3.2 Granular Analysis Agents (Parallel Execution via Constrained Decoding)
-Four specialized agents analyze the sliced graphics in parallel. To eliminate prompt fragility and schema errors, all agents run under **grammar-constrained decoding (e.g., Instructor or Outlines with Pydantic)**.
+Four specialized agents analyze the sliced graphics in parallel. To eliminate prompt fragility and schema errors, all agents use **Pydantic models as the response schema** of the LLM provider, and every response is validated (section 9).
 
 #### 3.2.1 Tile Boundary Agent
 * **Role:** Calculates sprite bounds and anchor points.
@@ -255,6 +255,26 @@ The validator audits the compiled level using deterministic game-logic checks. T
 * **Boundary Integrity Check:** Verifies that perimeter walls or impassable chasms surround all playable boundaries to prevent player out-of-bounds exploits.
 
 ---
+
+### 4.3 Implementation (current)
+
+`backend/pipeline/planning/graph.py`, a LangGraph `StateGraph`. Only the first node calls the LLM.
+
+| Node | Kind | What it does |
+|---|---|---|
+| Catalog digest | deterministic | Groups catalog tiles into named tile groups (`floor.<material>`, `<category>.<family tag>`, for example `obstacle.gravestone`). The LLM sees only this digest. Tiles tagged `autotile_required` or `fence` are excluded until autotile rules exist. |
+| `topology_agent` | LLM | Prompt + digest (+ structured errors of the previous attempt) -> `RoomTopologyGraph` (6.2). Temperature 0.4, up to 8192 output tokens, configurable thinking level. |
+| `layout_builder` | deterministic | Bearings are screen directions (north = up on screen = -1 col, -1 row). Room sizes 5, 7, 9 cells (+/- 1 jitter), at least 2 cells apart; 2-cell corridors (`straight` L-shape, `winding` 2 to 3 bends, `bridge` straight); map = bounding box + 3-cell margin, 20 to 48 per axis. |
+| `stacking` | deterministic placeholder | All rooms at elevation 0: the packs have no ramp or elevated tiles. |
+| `spawner` | deterministic | `PlayerSpawn` at the entrance center; `ExitTrigger` in the room farthest from the entrance in the corridor graph; `enemy_count` zombies per room on walkable cells, spread out, at least 3 cells from the spawn. |
+| `dressing` | deterministic, weighted autotile-lite | Room floors from room or global style weights; corridors on the path floor; props and decorations by room purpose (boss room center kept clear). Every cell outside rooms and corridors is **wilderness** filled with blocking obstacles (boundary integrity). **Camera clearance:** wilderness in front of a playable cell (on screen) is graded by sprite height: small rocks close, rock pillars further, trees beyond, so tall sprites do not hide the playable area. |
+| `validator` | deterministic | Path spawn -> exit and every room reachable (movement rule: 8 directions, no corner cutting), entities on walkable cells, ids exist, no walkable cell on the map's outer ring, rooms inside the map and not overlapping. Output: `validation_report.json`. |
+
+**Self-healing loop:** failures a new layout can fix go back to `layout_builder` with a new seed (at most 2 per topology). Other failures go back to `topology_agent` with a structured error payload (at most 3 topology attempts). If all attempts fail, the job fails with the last validation report; there is no silent fallback. The placeholder planner remains available as an explicit choice (`planner=placeholder`).
+
+**Not implemented yet:** true WFC with socket constraints (cliffs, water, riverbanks, fences need autotile rules), elevation and ramps, and the LLM Aesthetic Stylist as a separate agent (its weights come from the topology agent's `style_distribution` and room `dressing`).
+
+**Evaluation:** `backend/eval/pipeline2_report.md` (5 fixed prompts, previews, per-prompt judgement).
 
 ## 5. Pipeline 3: Execution Pipeline
 
@@ -403,10 +423,19 @@ The Spatial Topology Planner Agent outputs this intermediate macro-layout contra
   "required": ["theme", "style_distribution", "rooms", "corridors"],
   "properties": {
     "theme": { "type": "string", "example": "dungeon_crypt" },
+    "design_notes": { "type": "string", "maxLength": 400, "description": "Why this layout fits the prompt (shown in the UI)" },
     "style_distribution": {
-      "type": "object",
-      "description": "Thematic weights consumed by the WFC / Autotiling engine",
-      "additionalProperties": { "type": "number" }
+      "type": "array",
+      "description": "Thematic weights consumed by the WFC / Autotiling engine. A list, not a map: Gemini structured output ignores additionalProperties.",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["tile_group", "weight"],
+        "properties": {
+          "tile_group": { "type": "string", "description": "Unique. Must name a tile group that exists in asset_catalog.json" },
+          "weight": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      }
     },
     "rooms": {
       "type": "array",
@@ -418,7 +447,14 @@ The Spatial Topology Planner Agent outputs this intermediate macro-layout contra
           "purpose": { "enum": ["entrance", "combat", "puzzle", "boss", "treasure"] },
           "relative_position": { "enum": ["north", "south", "east", "west", "center"] },
           "elevation": { "type": "integer", "default": 0 },
-          "size": { "enum": ["small", "medium", "large"] }
+          "size": { "enum": ["small", "medium", "large"] },
+          "enemy_count": { "type": "integer", "minimum": 0, "maximum": 6, "default": 0 },
+          "dressing": {
+            "type": "array", "maxItems": 4,
+            "description": "Optional style weights that override style_distribution inside this room",
+            "items": { "$ref": "#/properties/style_distribution/items" }
+          },
+          "description": { "type": "string", "maxLength": 120 }
         }
       }
     },
@@ -437,6 +473,8 @@ The Spatial Topology Planner Agent outputs this intermediate macro-layout contra
   }
 }
 ```
+
+**Rules outside the JSON Schema** (Pydantic validators in `backend/pipeline/planning/models.py`): room ids are unique, corridor endpoints name existing rooms, exactly one room has purpose `entrance`, `tile_group` values are unique, 3 to 7 rooms, the corridor graph is connected, at most 20 enemies in total. **Catalog-aware rules:** every `tile_group` exists in the catalog digest (section 4.3), and `style_distribution` contains at least one `floor.*` group.
 
 ### 6.3 Level Specification Plan Schema (`level_plan.json`)
 The Level Design Planning Pipeline outputs this contract after WFC tile dressing and entity placement.
@@ -557,10 +595,19 @@ The backend (`backend/`, Python + FastAPI) runs the three pipelines as a job and
 
 **"Try Out":** the game creates `LevelSource.network(Uri.parse('http://localhost:8000/api/levels/{job_id}/bundle/'))` and loads `level.tmj` from it (section 7). The network source uses an `HttpAssetBundle` built on the `http` package. Flutter's `NetworkAssetBundle` is not used: it depends on `dart:io` `HttpClient`, which does not work on Flutter web.
 
-## 9. Summary of Technical Advantages
+## 9. LLM Provider
+
+* Runtime agents call the model through one interface (`backend/pipeline/llm/`): `generate_structured(schema, system, prompt, images)` returns a validated Pydantic object, or raises `LLMOutputError` / `LLMUnavailableError` / `LLMConfigError` with a message that is safe to show in the job status.
+* Provider: Gemini on Vertex AI through the `google-genai` SDK. The Pydantic model is the `response_schema`; the response is validated with `model_validate_json`. A schema mismatch gets one repair attempt with the validation errors; transient errors (429, 5xx, timeouts) retry with backoff.
+* Configuration: `neuro-symbolic-level-designer/.env` (git-ignored) and a service account key (git-ignored). Gemini 3.x models are served from the Vertex AI location `global`.
+* Tests replay recorded model responses (`backend/tests/llm_fixtures/`), so they run offline and are deterministic. `LLM_MODE=live|record|replay`.
+* Another provider (for example IBM watsonx.ai) is a new class behind the same interface.
+* IBM Bob is the development tool. The runtime model is a separate choice (BUILD_LOG.md Log-30).
+
+## 10. Summary of Technical Advantages
 
 1. **Neuro-Symbolic Efficiency ("Agents Plan, Algorithms Fill"):** Eliminates prompt bloat and hallucinated numerical arrays by letting agents reason over semantic room graphs, while deterministic solvers (WFC, A\*, BSP) handle micro-tile indexing.
-2. **Grammar-Constrained Decoding:** All VLM and LLM agent interactions run under strict Pydantic schemas (via Instructor / Outlines), mathematically guaranteeing schema conformity and eliminating parsing retries.
+2. **Schema-Constrained Output:** All VLM and LLM agent interactions use Pydantic models as the provider's response schema, and every response is validated before use, with one repair attempt on a mismatch.
 3. **Automated Self-Healing Loop:** LangGraph StateGraph connects deterministic validation gates with planning agents, feeding structured error payloads back for automated re-planning on edge cases.
 4. **Low Friction for Developers:** Developers provide raw spritesheets and creative prompts—no manual JSON configuration, slicing, or Tiled drawing required.
 5. **Deterministic Stability & Direct Flame Compatibility:** Critical pathfinding, coordinate math, WFC contradiction recovery, and serialization are 100% deterministic, compiling directly into Flutter/Flame asset pipelines.

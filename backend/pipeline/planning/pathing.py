@@ -67,6 +67,22 @@ def shortest_path(width: int, height: int, blocked: set[Cell], start: Cell, goal
     return None
 
 
+def reachable(width: int, height: int, blocked: set[Cell], start: Cell) -> set[Cell]:
+    """Every cell reachable from ``start`` under the movement rule (BFS)."""
+    if start in blocked or not (0 <= start[0] < height and 0 <= start[1] < width):
+        return set()
+    seen = {start}
+    queue = deque([start])
+    while queue:
+        cell = queue.popleft()
+        for dr, dc in _DIRECTIONS:
+            nxt = (cell[0] + dr, cell[1] + dc)
+            if nxt not in seen and can_step(width, height, blocked, cell, dr, dc):
+                seen.add(nxt)
+                queue.append(nxt)
+    return seen
+
+
 def line_cells(start: Cell, goal: Cell) -> list[Cell]:
     """Cells on the straight line from start to goal (Bresenham, 8-connected)."""
     (r0, c0), (r1, c1) = start, goal
