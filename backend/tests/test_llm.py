@@ -4,6 +4,8 @@ mocked, and recorded responses are replayed from tests/llm_fixtures/.
 """
 from __future__ import annotations
 
+import os
+
 import json
 import subprocess
 from pathlib import Path
@@ -86,7 +88,7 @@ def test_config_repr_hides_project_and_credentials(tmp_path):
 
 @pytest.mark.parametrize(
     "missing",
-    ["GOOGLE_GENAI_MODEL", "GOOGLE_CLOUD_PROJECT", "GOOGLE_CLOUD_LOCATION", "GOOGLE_APPLICATION_CREDENTIALS"],
+    ["GOOGLE_GENAI_MODEL", "GOOGLE_CLOUD_PROJECT", "GOOGLE_CLOUD_LOCATION"],
 )
 def test_config_missing_variable_is_named_without_values(tmp_path, missing):
     key = tmp_path / DUMMY_KEY_NAME
@@ -100,6 +102,35 @@ def test_config_missing_variable_is_named_without_values(tmp_path, missing):
     for value in values.values():
         if value not in ("True",):
             assert value not in message
+
+
+def test_config_without_credentials_file_uses_adc(tmp_path):
+    values = _full_env("")
+    del values["GOOGLE_APPLICATION_CREDENTIALS"]
+    config = load_config(_env_file(tmp_path, **values), environ={}, mode="live")
+    assert config.credentials_path is None and config.project == DUMMY_PROJECT
+    # Set to an empty value counts as unset.
+    config = load_config(_env_file(tmp_path, **_full_env("")), environ={}, mode="live")
+    assert config.credentials_path is None
+
+
+def test_gemini_client_without_key_file_leaves_adc_alone(tmp_path, monkeypatch):
+    from pipeline.llm import gemini as gemini_module
+
+    values = _full_env("")
+    del values["GOOGLE_APPLICATION_CREDENTIALS"]
+    config = load_config(_env_file(tmp_path, **values), environ={}, mode="live")
+    monkeypatch.setenv("GOOGLE_APPLICATION_CREDENTIALS", "")
+    seen = {}
+
+    class _Client:
+        def __init__(self, **kwargs):
+            seen.update(kwargs, env=os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"))
+
+    monkeypatch.setattr(gemini_module.genai, "Client", _Client)
+    gemini_module.GeminiProvider(config)
+    assert seen["env"] is None, "an empty variable would break ADC"
+    assert (seen["vertexai"], seen["project"], seen["location"]) == (True, DUMMY_PROJECT, "us-central1")
 
 
 def test_config_errors_never_contain_values(tmp_path):

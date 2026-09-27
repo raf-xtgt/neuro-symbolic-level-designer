@@ -75,7 +75,12 @@ class GeminiProvider:
         self._base_delay_s = base_delay_s
         if client is None:
             # The Google auth library reads the key file from this variable.
-            os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = self._credentials or ""
+            # Without a key file it must be unset, so Application Default
+            # Credentials (the Cloud Run service account) are used.
+            if self._credentials:
+                os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = self._credentials
+            elif not os.environ.get("GOOGLE_APPLICATION_CREDENTIALS", "").strip():
+                os.environ.pop("GOOGLE_APPLICATION_CREDENTIALS", None)
             try:
                 client = genai.Client(vertexai=True, project=config.project, location=config.location)
             except auth_exceptions.GoogleAuthError:

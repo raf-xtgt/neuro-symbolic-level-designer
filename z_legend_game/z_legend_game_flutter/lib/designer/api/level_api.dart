@@ -10,8 +10,17 @@ class LevelApi {
   LevelApi(this.baseUrl, {http.Client? client})
     : _client = client ?? http.Client();
 
-  /// Reads `apiUrl` from `assets/config.json`.
-  static Future<LevelApi> fromConfig({AssetBundle? bundle}) async {
+  /// The backend URL given at build time:
+  /// `flutter build web --dart-define=API_URL=https://...`.
+  static const String apiUrlDefine = String.fromEnvironment('API_URL');
+
+  /// [apiUrl] (default: the `API_URL` define) when non-empty, else `apiUrl`
+  /// from `assets/config.json` (the local default).
+  static Future<LevelApi> fromConfig({
+    AssetBundle? bundle,
+    String apiUrl = apiUrlDefine,
+  }) async {
+    if (apiUrl.trim().isNotEmpty) return LevelApi(Uri.parse(apiUrl.trim()));
     final config = jsonDecode(
       await (bundle ?? rootBundle).loadString('assets/config.json'),
     );

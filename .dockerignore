@@ -1,0 +1,32 @@
+# Build context: neuro-symbolic-level-designer/ (backend/Dockerfile).
+# Secrets: never in the context.
+.env
+.env.*
+**/.env
+creds.json
+**/creds*.json
+**/*.pem
+
+# Not needed by the backend image.
+.git
+**/*.zip
+z_legend_game/
+bob_sessions/
+.bob/
+.claude/
+.mcp.json
+tools/
+**/__pycache__/
+**/.pytest_cache/
+**/.venv/
+**/build/
+**/.dart_tool/
+backend/data/
+backend/eval/
+backend/tests/
+backend/codegen_check/pubspec.lock
+backend/codegen_check/lib/
+
+# game-assets: only the default spritesheet.
+game-assets/*
+!game-assets/grassland_tiles.png

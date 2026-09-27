@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -35,7 +36,30 @@ const _job = {
   },
 };
 
+/// Serves `assets/config.json` from memory.
+class _ConfigBundle extends CachingAssetBundle {
+  @override
+  Future<ByteData> load(String key) async {
+    if (key != 'assets/config.json') throw FlutterError('no asset $key');
+    final bytes = utf8.encode(jsonEncode({'apiUrl': 'http://localhost:8000'}));
+    return ByteData.sublistView(Uint8List.fromList(bytes));
+  }
+}
+
 void main() {
+  test('API_URL define wins over assets/config.json when non-empty', () async {
+    final bundle = _ConfigBundle();
+    final deployed = await LevelApi.fromConfig(
+      bundle: bundle,
+      apiUrl: 'https://backend.example.run.app',
+    );
+    expect(deployed.baseUrl.toString(), 'https://backend.example.run.app');
+    for (final empty in ['', '  ']) {
+      final local = await LevelApi.fromConfig(bundle: bundle, apiUrl: empty);
+      expect(local.baseUrl.toString(), 'http://localhost:8000');
+    }
+  });
+
   test('bundleUrl', () {
     expect(
       LevelApi(_base).bundleUrl('abc').toString(),

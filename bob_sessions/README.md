@@ -35,3 +35,4 @@ Each IBM Bob task has its own folder. The folder contains the prompt given to Bo
 | 14 | `14_pipeline3_verification_codegen/` | Pipeline 3 remainder: entity mechanics agent, Jinja2 Flame code generator, verification report (summary.json, dart analyze), bundle zip, zombie behaviors in the game. | Done (Claude Code). Browser check passed. |
 | 15 | `15_demo_polish/` | Player health (6 HP, HUD), Kenney sample sheets and small-catalog robustness, hidden planner choice, friendly progress text, default grassland with uploads only. | Done (Claude Code). Browser check passed. |
 | 16 | `16_catalog_visual_fixes/` | Sparse wilderness without natural blockers, 40% cap per prop group in rooms, void and dark floor outlier exclusion. | Done (Claude Code). Browser check pending. |
+| 17 | `17_deploy_readiness/` | ADC credentials, CORS origins from env, API URL dart-define, backend Dockerfile with Flutter SDK, Vercel config. | Done (Claude Code). Deploy pending. |

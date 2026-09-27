@@ -287,3 +287,21 @@ def test_bundle_rejects_dot_dot_path(client, done_job):
 def test_invalid_or_unknown_job_id(client, job_id):
     assert client.get(f"/api/levels/{job_id}").status_code in (404, 422)
     assert client.get(f"/api/levels/{job_id}/bundle/level.tmj").status_code in (404, 422)
+
+
+def test_cors_origins(tmp_path):
+    from app.main import cors_origins
+
+    assert cors_origins(" https://a.vercel.app/, ,https://b.example ") == ["https://a.vercel.app", "https://b.example"]
+    app = create_app(data_dir=tmp_path / "data", allowed_origins=cors_origins("https://my-app.vercel.app"))
+    client = TestClient(app)
+
+    def allowed(origin: str) -> str | None:
+        return client.get("/api/health", headers={"Origin": origin}).headers.get("access-control-allow-origin")
+
+    assert allowed("https://my-app.vercel.app") == "https://my-app.vercel.app"
+    assert allowed("http://localhost:5173") == "http://localhost:5173"  # the localhost regex stays
+    assert allowed("https://evil.example") is None
+    preflight = client.options("/api/levels", headers={
+        "Origin": "https://my-app.vercel.app", "Access-Control-Request-Method": "POST"})
+    assert preflight.status_code == 200

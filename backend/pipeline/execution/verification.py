@@ -11,7 +11,8 @@ Checks a finished bundle (each ``{name, passed, skipped, detail}``):
   * ``dart_analyze``         ``dart analyze`` on the generated ``level_loader.dart`` inside
                              the scratch package ``backend/codegen_check/``; skipped (never
                              failed) when ``dart`` is missing, the package cannot resolve,
-                             it times out, or ``DART_ANALYZE=off``
+                             it times out (``DART_TIMEOUT_S`` seconds, default 120),
+                             or ``DART_ANALYZE=off``
 
 The summary also holds the level facts, counts, playability, timings, LLM
 usage per pipeline, the bundle files (size, SHA-256) and generator versions.
@@ -38,7 +39,7 @@ VERIFICATION_VERSION = "1"
 SUMMARY_NAME = "summary.json"
 MAP_NAME = "level.tmj"
 CODEGEN_CHECK_DIR = Path(__file__).resolve().parents[2] / "codegen_check"
-DART_TIMEOUT_S = 60
+DEFAULT_DART_TIMEOUT_S = 120  # a cold first `dart analyze` on Cloud Run is slower than locally
 _GID_MASK = 0x1FFFFFFF  # without Tiled's flip flags
 _MAP_KEYS = ("width", "height", "tilewidth", "tileheight", "layers", "tilesets")
 
@@ -135,7 +136,16 @@ def check_objects(tmj: dict) -> dict:
 # dart analyze
 # ---------------------------------------------------------------------------
 
-def _resolve_package(package: Path) -> str | None:
+def dart_timeout_s() -> int:
+    """``DART_TIMEOUT_S`` from the environment (seconds), default 120."""
+    try:
+        value = int(os.environ.get("DART_TIMEOUT_S", "").strip() or DEFAULT_DART_TIMEOUT_S)
+    except ValueError:
+        return DEFAULT_DART_TIMEOUT_S
+    return value if value > 0 else DEFAULT_DART_TIMEOUT_S
+
+
+def _resolve_package(package: Path, timeout_s: int) -> str | None:
     """None when the scratch package is resolved, else the reason it is not."""
     if (package / ".dart_tool" / "package_config.json").is_file():
         return None
@@ -144,7 +154,7 @@ def _resolve_package(package: Path) -> str | None:
         return "the codegen_check package is not resolved and flutter is not on PATH"
     try:
         done = subprocess.run(
-            [flutter, "pub", "get", "--offline"], cwd=package, capture_output=True, text=True, timeout=DART_TIMEOUT_S,
+            [flutter, "pub", "get", "--offline"], cwd=package, capture_output=True, text=True, timeout=timeout_s,
         )
     except subprocess.TimeoutExpired:
         return "flutter pub get --offline timed out"
@@ -153,8 +163,10 @@ def _resolve_package(package: Path) -> str | None:
     return None
 
 
-def check_dart_analyze(dart_file: Path, package: Path = CODEGEN_CHECK_DIR, timeout_s: int = DART_TIMEOUT_S) -> dict:
+def check_dart_analyze(dart_file: Path, package: Path = CODEGEN_CHECK_DIR, timeout_s: int | None = None) -> dict:
+    """``timeout_s``: None = ``DART_TIMEOUT_S`` (read at call time)."""
     name = "dart_analyze"
+    timeout_s = timeout_s or dart_timeout_s()
     if os.environ.get("DART_ANALYZE", "on").lower() == "off":
         return _skipped(name, "disabled (DART_ANALYZE=off)")
     if not dart_file.is_file():
@@ -164,7 +176,7 @@ def check_dart_analyze(dart_file: Path, package: Path = CODEGEN_CHECK_DIR, timeo
         return _skipped(name, "dart is not on PATH")
     if not (package / "pubspec.yaml").is_file():
         return _skipped(name, f"no scratch package at {package}")
-    reason = _resolve_package(package)
+    reason = _resolve_package(package, timeout_s)
     if reason:
         return _skipped(name, reason)
     target = package / "lib" / f"check_{uuid.uuid4().hex}.dart"

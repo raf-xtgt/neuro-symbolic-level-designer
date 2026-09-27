@@ -20,7 +20,7 @@ from app.main import create_app
 from pipeline.execution.codegen import CodegenError, camel_case, render_level_loader
 from pipeline.execution.compile import run_compile
 from pipeline.execution.mechanics import DEFAULTS, LevelMechanics, RoomMechanics, generate_mechanics, run_mechanics
-from pipeline.execution.verification import check_dart_analyze, run_checks
+from pipeline.execution.verification import check_dart_analyze, dart_timeout_s, run_checks
 from pipeline.llm.base import LLMUnavailableError
 from pipeline.llm.fake import FakeProvider
 from pipeline.planning.run import run_planning
@@ -193,6 +193,15 @@ def test_dart_analyze_reports_broken_code(bundle, tmp_path, monkeypatch):
     if check["skipped"]:
         pytest.skip(check["detail"])
     assert not check["passed"] and "error" in check["detail"] and "level_loader.dart" in check["detail"]
+
+
+@pytest.mark.parametrize("value,expected", [(None, 120), ("45", 45), ("", 120), ("slow", 120), ("0", 120)])
+def test_dart_timeout_from_environment(monkeypatch, value, expected):
+    if value is None:
+        monkeypatch.delenv("DART_TIMEOUT_S", raising=False)
+    else:
+        monkeypatch.setenv("DART_TIMEOUT_S", value)
+    assert dart_timeout_s() == expected
 
 
 def test_dart_analyze_skips_without_dart(bundle, monkeypatch):

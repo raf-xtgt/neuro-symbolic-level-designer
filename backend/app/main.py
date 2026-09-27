@@ -5,6 +5,7 @@ Run from ``backend/``:  uv run uvicorn app.main:app --port 8000
 """
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -29,6 +30,13 @@ from pipeline.llm.base import LLMProvider
 from pipeline.planning.run import DEFAULT_PLANNER, PLANNERS
 
 MAX_PROMPT_CHARS = 2000
+LOCAL_ORIGINS = r"http://(localhost|127\.0\.0\.1):\d+"
+
+
+def cors_origins(value: str | None = None) -> list[str]:
+    """Exact origins from ``CORS_ORIGINS`` (comma-separated), e.g. the Vercel site."""
+    raw = os.environ.get("CORS_ORIGINS", "") if value is None else value
+    return [o.strip().rstrip("/") for o in raw.split(",") if o.strip()]
 FILE_LIMITS = {"spritesheets": 10, "tilesets": 10, "maps": 5}
 
 
@@ -44,12 +52,17 @@ def create_app(
     data_dir: Path = BACKEND_DIR / "data",
     packs_dir: Path = DEFAULT_PACKS_DIR,
     llm_provider: LLMProvider | None = None,
+    allowed_origins: list[str] | None = None,
 ) -> FastAPI:
-    """``llm_provider``: for tests (replay); None = configured by ``LLM_MODE``."""
+    """
+    ``llm_provider``: for tests (replay); None = configured by ``LLM_MODE``.
+    ``allowed_origins``: exact CORS origins besides localhost; None = ``CORS_ORIGINS``.
+    """
     app = FastAPI(title="Neuro-Symbolic Level Designer")
     app.add_middleware(
         CORSMiddleware,
-        allow_origin_regex=r"http://(localhost|127\.0\.0\.1):\d+",
+        allow_origin_regex=LOCAL_ORIGINS,
+        allow_origins=cors_origins() if allowed_origins is None else allowed_origins,
         allow_methods=["GET", "POST"],
         allow_headers=["*"],
     )

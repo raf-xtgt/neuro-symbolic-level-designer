@@ -6,8 +6,11 @@ Variables:
     GOOGLE_CLOUD_PROJECT            Vertex AI project
     GOOGLE_CLOUD_LOCATION           Vertex AI location, for example us-central1
     GOOGLE_GENAI_USE_VERTEXAI       must be true (the default) if set
-    GOOGLE_APPLICATION_CREDENTIALS  service account key file; a relative path
-                                    resolves from the repository root
+    GOOGLE_APPLICATION_CREDENTIALS  optional service account key file; a
+                                    relative path resolves from the repository
+                                    root. Unset: Application Default
+                                    Credentials (on Cloud Run, the service
+                                    account; locally, gcloud ADC)
     GOOGLE_GENAI_MODEL              model name, for example gemini-3.5-flash
     LLM_PROVIDER                    optional, only ``gemini`` (default)
     LLM_MODE                        optional: live (default), record, replay,
@@ -105,11 +108,13 @@ def load_config(
     if use_vertex not in _TRUE:
         raise LLMConfigError("GOOGLE_GENAI_USE_VERTEXAI must be true or false")
 
-    credentials = Path(require("GOOGLE_APPLICATION_CREDENTIALS")).expanduser()
-    if not credentials.is_absolute():
-        credentials = REPO_ROOT / credentials
-    if not credentials.is_file():
-        raise LLMConfigError("GOOGLE_APPLICATION_CREDENTIALS does not point to an existing file")
+    credentials: Path | None = None
+    if get("GOOGLE_APPLICATION_CREDENTIALS") is not None:
+        credentials = Path(require("GOOGLE_APPLICATION_CREDENTIALS")).expanduser()
+        if not credentials.is_absolute():
+            credentials = REPO_ROOT / credentials
+        if not credentials.is_file():
+            raise LLMConfigError("GOOGLE_APPLICATION_CREDENTIALS does not point to an existing file")
 
     return LLMConfig(
         provider=provider,
