@@ -13,6 +13,7 @@ class PlayerComponent extends CharacterComponent with KeyboardHandler {
     required super.startCol,
     required super.startRow,
     required super.isoMath,
+    required super.walkability,
   }) : super(
          imageBaseName: 'characters/player',
          jsonBaseName: 'assets/images/characters/player',
@@ -97,6 +98,13 @@ class PlayerComponent extends CharacterComponent with KeyboardHandler {
     final sdx = ((dx - dy) / 2).toDouble();
     final sdy = ((dx + dy) / 2).toDouble();
     setFacing(IsoDirection.fromDelta(sdx, sdy));
+
+    if (!walkability.canStep(col, row, dx, dy)) {
+      // Blocked: turn towards the obstacle, but do not walk into it.
+      _stepTimer = 0;
+      playAnimation(CharAnim.idle);
+      return;
+    }
     playAnimation(CharAnim.walk);
 
     _stepTimer += dt;

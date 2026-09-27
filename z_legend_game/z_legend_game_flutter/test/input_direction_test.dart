@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:z_legend_game_flutter/game/characters/character_component.dart';
 import 'package:z_legend_game_flutter/game/characters/player_component.dart';
 import 'package:z_legend_game_flutter/game/iso/iso_math.dart';
+import 'package:z_legend_game_flutter/game/level/walkability.dart';
 
 void main() {
   // Test that key combinations map to the correct 8 IsoDirection values.
@@ -24,6 +25,7 @@ void main() {
     startCol: 5,
     startRow: 5,
     isoMath: IsoMath.starter,
+    walkability: WalkabilityGrid(cols: 20, rows: 20),
   );
 
   Map<String, dynamic> dirCase(

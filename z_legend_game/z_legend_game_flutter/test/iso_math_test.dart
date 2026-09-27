@@ -101,11 +101,46 @@ void main() {
   });
 
   group('depthPriority', () {
-    test('(0,0,z=0) = 0', () => expect(IsoMath.depthPriority(0, 0), 0));
-    test('(1,2,z=0) = 300', () => expect(IsoMath.depthPriority(1, 2), 300));
     test(
-      '(5,3,z=2) = 802',
-      () => expect(IsoMath.depthPriority(5, 3, z: 2), 802),
+      '(0,0) character = 50',
+      () => expect(IsoMath.depthPriority(0, 0, DepthLayer.character), 50),
     );
+    test(
+      '(1,2) exit = 310',
+      () => expect(IsoMath.depthPriority(1, 2, DepthLayer.exitTrigger), 310),
+    );
+    // Build signed constants with arithmetic, not shifts: on the web
+    // (dart2js) `-1 << 30` is 3221225472, which drew the ground on top.
+    test('ground is negative and below everything', () {
+      expect(IsoMath.groundPriority, isNegative);
+      expect(
+        IsoMath.groundPriority,
+        lessThan(IsoMath.depthPriority(0, 0, DepthLayer.exitTrigger)),
+      );
+    });
+
+    // A tree on (5, 5); characters and decorations around it.
+    final tree = IsoMath.depthPriority(5, 5, DepthLayer.obstacle);
+    test('a character one row in front of a tree is drawn over it', () {
+      expect(
+        IsoMath.depthPriority(5, 6, DepthLayer.character),
+        greaterThan(tree),
+      );
+    });
+    test('a character one row behind a tree is drawn under it', () {
+      expect(IsoMath.depthPriority(5, 4, DepthLayer.character), lessThan(tree));
+    });
+    test('a decoration on the character cell is drawn under the character', () {
+      expect(
+        IsoMath.depthPriority(3, 7, DepthLayer.decoration),
+        lessThan(IsoMath.depthPriority(3, 7, DepthLayer.character)),
+      );
+    });
+    test('the exit is under a character on the same cell', () {
+      expect(
+        IsoMath.depthPriority(19, 19, DepthLayer.exitTrigger),
+        lessThan(IsoMath.depthPriority(19, 19, DepthLayer.character)),
+      );
+    });
   });
 }

@@ -27,4 +27,4 @@ Each IBM Bob task has its own folder. The folder contains the prompt given to Bo
 | 06 | `06_fastapi_backend/` | FastAPI backend: input contract validation, asset packs, job stages, bundle serving. | Done (Claude Code, Bob out of credits) |
 | 07 | `07_level_designer/` | Level Designer screen, API client, progress, result, Try Out (web-safe network loading). | Done (Claude Code). Browser check passed. |
 | 08 | `08_grassland_full_pack/` | Asset pack with walls, obstacles, decorations, water; multi-size tilesets; Pipeline 1 slicer measured against the Flare answer key. | Done (Claude Code) |
-| 09 | `09_collision_depth/` | Obstacle collision, depth sorting of tall sprites with occlusion fade, shared movement rule, fence tag, tight-box slicer metric. | Pending |
+| 09 | `09_collision_depth/` | Obstacle collision, depth sorting of tall sprites with occlusion fade, shared movement rule, fence tag, tight-box slicer metric. | Code done (Claude Code). Browser check pending. |

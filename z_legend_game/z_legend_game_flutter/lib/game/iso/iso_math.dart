@@ -91,13 +91,33 @@ class IsoMath {
   }
 
   // -------------------------------------------------------------------------
-  // Depth priority (Bob rule §2, ASSET_SPEC §1)
-  // Priority = (col + row) * 100 + z
+  // Depth priority (Bob rule §2, ARCHITECTURE.md 4.1.2)
+  // One formula for everything in the world:
+  //   priority = (col + row) * 100 + bias
+  // A higher priority draws later (in front). Characters and obstacles never
+  // share a cell, so they never tie on the same cell.
   // -------------------------------------------------------------------------
 
-  /// Returns the rendering priority for a character at grid position (col, row)
-  /// and elevation [z] (default 0).
-  static int depthPriority(int col, int row, {int z = 0}) {
-    return (col + row) * 100 + z;
+  /// Priority of the ground tile layer: below everything else in the world.
+  static const int groundPriority = -1000000000;
+
+  /// Returns the rendering priority of a world object of kind [layer] on
+  /// grid cell (col, row).
+  static int depthPriority(int col, int row, DepthLayer layer) {
+    return (col + row) * 100 + layer.bias;
   }
+}
+
+/// What a world component is, for its bias in [IsoMath.depthPriority].
+enum DepthLayer {
+  exitTrigger(10),
+  decoration(20),
+  character(50),
+  obstacle(50);
+
+  const DepthLayer(this.bias);
+
+  /// Added to `(col + row) * 100`. Always below 100, so a cell further
+  /// forward (higher col + row) is always drawn in front.
+  final int bias;
 }

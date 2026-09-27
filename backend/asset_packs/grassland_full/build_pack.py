@@ -56,6 +56,11 @@ INCLUDED: dict[str, tuple[str, bool, str, list[str]]] = {
     "fluffy_trees":       ("obstacle",   False, "plant", ["tree", "tall"]),
 }
 
+# Fence pieces (town_objects_08 to _15) are directional connectors: they only
+# look right joined to each other, so the placeholder planner never scatters them.
+FENCE_FLARE_IDS = range(104, 112)
+FENCE_TAG = "fence"
+
 # Section slug -> reason it is left out.
 EXCLUDED: dict[str, str] = {
     "tents": "multi-tile assembly",
@@ -106,6 +111,8 @@ def build(out_dir: Path) -> None:
             "rect": {"x": t.x, "y": t.y, "w": t.w, "h": t.h},
             "anchor": {"x": t.anchor_x, "y": t.anchor_y},
         }
+        if t.flare_id in FENCE_FLARE_IDS:
+            tags = [*tags, FENCE_TAG]
         if tags:
             tile["tags"] = list(tags)
         tile["source_ref"] = f"flare:tile={t.flare_id}"

@@ -8,7 +8,7 @@ class ExitTrigger extends PositionComponent {
   ExitTrigger({required this.col, required this.row, required this.isoMath}) {
     final worldCenter = isoMath.gridToWorldCenter(col, row);
     position = worldCenter;
-    priority = IsoMath.depthPriority(col, row) - 1;
+    priority = IsoMath.depthPriority(col, row, DepthLayer.exitTrigger);
   }
 
   final int col;

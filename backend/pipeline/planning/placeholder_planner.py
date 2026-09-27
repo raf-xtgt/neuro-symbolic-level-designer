@@ -9,12 +9,13 @@ Layout (any catalog with walkable floor tiles):
     (``stone`` when the catalog has it).
   - PlayerSpawn at the path start, ExitTrigger at the path end, and 3 Zombie
     objects on walkable ground cells off the path.
-  - If the catalog has obstacle or decoration tiles (without the tag
-    ``autotile_required``): an ``Objects`` layer (0 = empty cell) with
+  - If the catalog has obstacle or decoration tiles (without the tags
+    ``autotile_required`` and ``fence``): an ``Objects`` layer (0 = empty cell) with
     obstacles on about 8% and decorations on about 5% of the cells, never on
     the path, the entity cells, or the 8 neighbors of the spawn and the exit.
-    A BFS then checks that the exit is reachable; if not, obstacles on the
-    straight spawn-exit line are removed until it is. The result is recorded
+    A BFS (movement rule in ``pathing.py``, no corner cutting) then checks
+    that the exit is reachable; if not, obstacles on the straight spawn-exit
+    line and its diagonal corner cells are removed until it is. The result is recorded
     in the plan's ``summary``.
 """
 from __future__ import annotations
@@ -23,7 +24,7 @@ import hashlib
 import random
 from collections import Counter
 
-from pipeline.planning.pathing import Cell, line_cells, shortest_path
+from pipeline.planning.pathing import Cell, line_corridor, shortest_path
 
 WIDTH, HEIGHT = 20, 20
 ZOMBIE_COUNT = 3
@@ -31,6 +32,9 @@ PREFERRED_PATH_MATERIAL = "stone"
 OBSTACLE_SHARE = 0.08
 DECORATION_SHARE = 0.05
 AUTOTILE_TAG = "autotile_required"
+# Directional fence connectors look odd one by one; they need a fence planner.
+FENCE_TAG = "fence"
+SCATTER_EXCLUDED_TAGS = {AUTOTILE_TAG, FENCE_TAG}
 
 
 def seed_from_prompt(prompt: str) -> int:
@@ -115,10 +119,10 @@ def plan_level(catalog: dict, seed: int) -> dict:
 
 
 def _overlay_ids(catalog: dict, category: str) -> list[int]:
-    """Tiles of ``category`` the placeholder planner may place (no autotiles)."""
+    """Tiles of ``category`` the placeholder planner may scatter (no autotiles, no fences)."""
     return [
         t["id"] for t in catalog["tiles"]
-        if t["category"] == category and AUTOTILE_TAG not in t.get("tags", [])
+        if t["category"] == category and not SCATTER_EXCLUDED_TAGS & set(t.get("tags", []))
     ]
 
 
@@ -168,8 +172,9 @@ def ensure_path(
     grid: list[list[int]], walkable: dict[int, bool], spawn: Cell, exit_: Cell
 ) -> tuple[int, list[Cell] | None]:
     """
-    Removes blocking tiles on the straight spawn-exit line, one at a time,
-    until the BFS finds a path. Mutates ``grid``. Returns (tiles removed, path).
+    Removes blocking tiles on the straight spawn-exit line and its diagonal
+    corner cells (``line_corridor``), one at a time, until the BFS finds a
+    path. Mutates ``grid``. Returns (tiles removed, path).
     """
     height, width = len(grid), len(grid[0])
 
@@ -181,7 +186,7 @@ def ensure_path(
         return shortest_path(width, height, blocked, spawn, exit_)
 
     removed, path = 0, search()
-    for r, c in line_cells(spawn, exit_):
+    for r, c in line_corridor(spawn, exit_):
         if path is not None:
             break
         if grid[r][c] and not walkable[grid[r][c]]:

@@ -1,419 +1,163 @@
 {
   "compressionlevel": -1,
-  "height": 20,
+  "height": 12,
   "infinite": false,
   "layers": [
     {
       "data": [
-        20,
-        5,
-        11,
-        13,
-        15,
-        13,
-        8,
-        12,
-        5,
-        6,
-        12,
-        7,
-        7,
-        4,
-        10,
-        16,
-        7,
-        15,
-        9,
-        9,
-        7,
-        26,
-        6,
-        3,
-        8,
-        10,
-        6,
-        4,
-        5,
-        6,
-        7,
-        16,
-        7,
-        13,
-        12,
-        11,
         1,
         1,
-        3,
-        9,
-        5,
-        12,
-        25,
-        16,
-        11,
-        13,
-        7,
-        11,
-        10,
-        16,
-        4,
-        9,
-        4,
-        12,
-        12,
-        12,
-        3,
-        2,
-        8,
-        8,
-        16,
-        8,
-        14,
-        19,
-        12,
-        14,
-        12,
-        15,
-        10,
-        8,
-        12,
-        4,
-        8,
         1,
-        6,
-        14,
-        13,
-        6,
         1,
-        4,
-        15,
-        7,
-        10,
-        2,
-        29,
-        15,
-        2,
-        13,
-        14,
-        6,
-        4,
-        16,
-        14,
-        2,
-        12,
-        10,
-        7,
-        3,
-        12,
-        9,
-        3,
-        11,
         1,
-        15,
-        3,
-        20,
-        2,
-        3,
-        4,
-        3,
-        16,
-        9,
-        5,
-        2,
-        11,
         1,
-        6,
-        6,
-        15,
-        5,
-        11,
-        2,
-        13,
-        4,
-        7,
-        5,
-        30,
-        11,
-        10,
-        14,
-        4,
-        13,
-        7,
-        8,
-        16,
         1,
-        10,
-        3,
-        10,
-        6,
-        11,
-        6,
-        16,
-        12,
-        5,
-        14,
-        6,
-        22,
-        2,
-        2,
-        16,
-        12,
-        15,
-        2,
-        7,
-        3,
-        4,
-        4,
-        9,
-        13,
-        2,
-        9,
-        6,
-        8,
         1,
-        13,
-        2,
-        10,
-        22,
-        8,
-        3,
-        7,
-        4,
-        4,
-        8,
-        9,
-        11,
-        9,
-        3,
-        6,
-        6,
-        10,
-        10,
-        4,
-        15,
-        16,
-        16,
-        7,
-        13,
-        20,
-        4,
-        2,
-        4,
-        8,
-        8,
-        8,
-        14,
         1,
-        11,
         1,
-        16,
-        11,
-        6,
-        11,
-        11,
-        6,
-        9,
-        16,
-        5,
-        11,
-        26,
-        16,
-        7,
-        14,
-        13,
-        4,
-        7,
-        16,
         1,
-        14,
-        12,
-        5,
-        16,
-        2,
-        13,
-        13,
-        7,
-        5,
-        13,
-        10,
-        7,
-        18,
-        10,
-        6,
-        14,
-        13,
         1,
-        8,
-        16,
-        7,
-        12,
-        13,
-        8,
-        13,
-        4,
-        10,
-        4,
-        9,
-        15,
-        9,
-        9,
-        12,
-        26,
-        5,
-        6,
-        13,
-        5,
-        5,
-        12,
-        9,
-        6,
-        8,
-        13,
-        3,
-        10,
         1,
-        3,
-        16,
         1,
-        6,
-        8,
-        10,
         1,
-        22,
-        8,
-        6,
-        2,
-        5,
-        15,
-        16,
-        11,
-        3,
-        2,
-        4,
-        16,
-        3,
-        13,
-        4,
-        6,
-        15,
-        16,
-        6,
-        12,
-        6,
-        20,
         1,
-        2,
-        3,
-        10,
-        11,
-        6,
-        2,
-        4,
-        6,
-        2,
-        3,
-        8,
-        13,
-        5,
-        16,
-        16,
-        14,
-        3,
-        8,
-        7,
-        31,
-        6,
-        13,
-        10,
-        7,
-        12,
-        10,
-        15,
-        10,
-        2,
-        14,
-        11,
-        2,
-        11,
-        4,
-        13,
-        9,
-        4,
-        2,
-        4,
-        14,
-        29,
-        8,
         1,
-        15,
-        12,
-        10,
-        15,
-        6,
-        12,
-        7,
-        7,
-        8,
-        4,
-        4,
-        11,
-        3,
-        12,
-        4,
-        14,
-        15,
-        3,
-        31,
-        9,
-        3,
-        16,
-        15,
-        14,
-        13,
-        14,
-        11,
-        4,
-        7,
-        15,
-        12,
-        2,
-        4,
-        16,
-        14,
-        11,
-        5,
-        16,
-        9,
-        29,
-        12,
         1,
-        13,
-        15,
-        2,
-        9,
-        11,
-        10,
-        2,
-        3,
-        16,
-        11,
-        7,
-        3,
-        13,
-        10,
-        10,
-        4,
         1,
-        13,
-        17
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
       ],
       "encoding": "csv",
-      "height": 20,
+      "height": 12,
       "id": 1,
       "name": "Ground",
       "opacity": 1,
       "type": "tilelayer",
       "visible": true,
-      "width": 20,
+      "width": 12,
       "x": 0,
       "y": 0
     },
@@ -421,111 +165,7 @@
       "data": [
         0,
         0,
-        103,
         0,
-        0,
-        0,
-        94,
-        0,
-        0,
-        0,
-        0,
-        0,
-        95,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        90,
-        0,
-        0,
-        0,
-        0,
-        105,
-        0,
-        98,
-        0,
-        0,
-        108,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        101,
-        0,
-        0,
-        0,
-        0,
-        0,
-        60,
-        0,
-        0,
-        62,
-        61,
-        0,
-        0,
-        0,
-        0,
-        63,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        91,
-        0,
-        0,
-        0,
-        0,
-        96,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        94,
         0,
         0,
         0,
@@ -546,10 +186,6 @@
         0,
         57,
         0,
-        73,
-        0,
-        0,
-        72,
         0,
         0,
         0,
@@ -557,26 +193,28 @@
         0,
         0,
         0,
-        66,
-        0,
-        0,
-        101,
         0,
         0,
         0,
-        0,
-        93,
+        57,
         0,
         0,
         0,
         0,
         0,
         0,
-        110,
         0,
         0,
         0,
         0,
+        0,
+        57,
+        0,
+        0,
+        0,
+        0,
+        0,
+        57,
         0,
         0,
         0,
@@ -589,33 +227,6 @@
         0,
         0,
         0,
-        100,
-        77,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        116,
-        0,
-        114,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        112,
-        0,
-        0,
-        0,
-        0,
-        71,
-        0,
-        95,
-        75,
         0,
         0,
         0,
@@ -632,12 +243,9 @@
         0,
         77,
         0,
-        101,
         0,
         0,
         0,
-        75,
-        64,
         0,
         0,
         0,
@@ -655,22 +263,18 @@
         0,
         0,
         0,
-        96,
         0,
         0,
         0,
-        60,
         0,
         0,
         0,
         0,
         0,
         0,
-        99,
         0,
         0,
         0,
-        111,
         0,
         0,
         0,
@@ -683,18 +287,14 @@
         0,
         0,
         0,
-        106,
-        80,
         0,
         0,
         0,
         0,
-        93,
         0,
         0,
         0,
         0,
-        61,
         0,
         0,
         0,
@@ -703,131 +303,19 @@
         0,
         0,
         0,
-        0,
-        0,
-        0,
-        89,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        72,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        106,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        116,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        108,
-        0,
-        65,
-        0,
-        99,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        75,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        108,
-        0,
-        0,
-        0,
-        89,
         0,
         0,
         0,
         0
       ],
       "encoding": "csv",
-      "height": 20,
+      "height": 12,
       "id": 2,
       "name": "Objects",
       "opacity": 1,
       "type": "tilelayer",
       "visible": true,
-      "width": 20,
+      "width": 12,
       "x": 0,
       "y": 0
     },
@@ -840,8 +328,8 @@
           "id": 1,
           "name": "spawn_player",
           "type": "PlayerSpawn",
-          "x": 16.0,
-          "y": 16.0,
+          "x": 80.0,
+          "y": 176.0,
           "width": 0.0,
           "height": 0.0,
           "rotation": 0,
@@ -851,8 +339,8 @@
           "id": 2,
           "name": "exit_trigger",
           "type": "ExitTrigger",
-          "x": 624.0,
-          "y": 624.0,
+          "x": 368.0,
+          "y": 368.0,
           "width": 0.0,
           "height": 0.0,
           "rotation": 0,
@@ -862,30 +350,8 @@
           "id": 3,
           "name": "zombie_0",
           "type": "Zombie",
-          "x": 592.0,
-          "y": 240.0,
-          "width": 0.0,
-          "height": 0.0,
-          "rotation": 0,
-          "visible": true
-        },
-        {
-          "id": 4,
-          "name": "zombie_1",
-          "type": "Zombie",
-          "x": 304.0,
-          "y": 144.0,
-          "width": 0.0,
-          "height": 0.0,
-          "rotation": 0,
-          "visible": true
-        },
-        {
-          "id": 5,
-          "name": "zombie_2",
-          "type": "Zombie",
-          "x": 272.0,
-          "y": 464.0,
+          "x": 368.0,
+          "y": 80.0,
           "width": 0.0,
           "height": 0.0,
           "rotation": 0,
@@ -900,7 +366,7 @@
     }
   ],
   "nextlayerid": 4,
-  "nextobjectid": 7,
+  "nextobjectid": 5,
   "orientation": "isometric",
   "renderorder": "right-down",
   "tiledversion": "1.10.2",
@@ -3297,1147 +2763,12 @@
       "firstgid": 33
     },
     {
-      "columns": 32,
-      "image": "tileset_2.png",
-      "imageheight": 64,
-      "imagewidth": 2048,
-      "margin": 0,
-      "name": "tileset_2",
-      "spacing": 0,
-      "tilecount": 32,
-      "tileheight": 64,
-      "tilewidth": 64,
-      "tiles": [
-        {
-          "id": 0,
-          "properties": [
-            {
-              "name": "catalog_id",
-              "type": "int",
-              "value": 56
-            },
-            {
-              "name": "category",
-              "type": "string",
-              "value": "obstacle"
-            },
-            {
-              "name": "walkable",
-              "type": "bool",
-              "value": false
-            },
-            {
-              "name": "material",
-              "type": "string",
-              "value": "wood"
-            },
-            {
-              "name": "elevation",
-              "type": "int",
-              "value": 0
-            },
-            {
-              "name": "tags",
-              "type": "string",
-              "value": "prop"
-            }
-          ]
-        },
-        {
-          "id": 1,
-          "properties": [
-            {
-              "name": "catalog_id",
-              "type": "int",
-              "value": 57
-            },
-            {
-              "name": "category",
-              "type": "string",
-              "value": "obstacle"
-            },
-            {
-              "name": "walkable",
-              "type": "bool",
-              "value": false
-            },
-            {
-              "name": "material",
-              "type": "string",
-              "value": "wood"
-            },
-            {
-              "name": "elevation",
-              "type": "int",
-              "value": 0
-            },
-            {
-              "name": "tags",
-              "type": "string",
-              "value": "prop"
-            }
-          ]
-        },
-        {
-          "id": 2,
-          "properties": [
-            {
-              "name": "catalog_id",
-              "type": "int",
-              "value": 58
-            },
-            {
-              "name": "category",
-              "type": "string",
-              "value": "obstacle"
-            },
-            {
-              "name": "walkable",
-              "type": "bool",
-              "value": false
-            },
-            {
-              "name": "material",
-              "type": "string",
-              "value": "wood"
-            },
-            {
-              "name": "elevation",
-              "type": "int",
-              "value": 0
-            },
-            {
-              "name": "tags",
-              "type": "string",
-              "value": "prop"
-            }
-          ]
-        },
-        {
-          "id": 3,
-          "properties": [
-            {
-              "name": "catalog_id",
-              "type": "int",
-              "value": 59
-            },
-            {
-              "name": "category",
-              "type": "string",
-              "value": "obstacle"
-            },
-            {
-              "name": "walkable",
-              "type": "bool",
-              "value": false
-            },
-            {
-              "name": "material",
-              "type": "string",
-              "value": "wood"
-            },
-            {
-              "name": "elevation",
-              "type": "int",
-              "value": 0
-            },
-            {
-              "name": "tags",
-              "type": "string",
-              "value": "prop"
-            }
-          ]
-        },
-        {
-          "id": 4,
-          "properties": [
-            {
-              "name": "catalog_id",
-              "type": "int",
-              "value": 60
-            },
-            {
-              "name": "category",
-              "type": "string",
-              "value": "obstacle"
-            },
-            {
-              "name": "walkable",
-              "type": "bool",
-              "value": false
-            },
-            {
-              "name": "material",
-              "type": "string",
-              "value": "wood"
-            },
-            {
-              "name": "elevation",
-              "type": "int",
-              "value": 0
-            },
-            {
-              "name": "tags",
-              "type": "string",
-              "value": "prop"
-            }
-          ]
-        },
-        {
-          "id": 5,
-          "properties": [
-            {
-              "name": "catalog_id",
-              "type": "int",
-              "value": 61
-            },
-            {
-              "name": "category",
-              "type": "string",
-              "value": "obstacle"
-            },
-            {
-              "name": "walkable",
-              "type": "bool",
-              "value": false
-            },
-            {
-              "name": "material",
-              "type": "string",
-              "value": "wood"
-            },
-            {
-              "name": "elevation",
-              "type": "int",
-              "value": 0
-            },
-            {
-              "name": "tags",
-              "type": "string",
-              "value": "prop"
-            }
-          ]
-        },
-        {
-          "id": 6,
-          "properties": [
-            {
-              "name": "catalog_id",
-              "type": "int",
-              "value": 62
-            },
-            {
-              "name": "category",
-              "type": "string",
-              "value": "obstacle"
-            },
-            {
-              "name": "walkable",
-              "type": "bool",
-              "value": false
-            },
-            {
-              "name": "material",
-              "type": "string",
-              "value": "wood"
-            },
-            {
-              "name": "elevation",
-              "type": "int",
-              "value": 0
-            },
-            {
-              "name": "tags",
-              "type": "string",
-              "value": "prop"
-            }
-          ]
-        },
-        {
-          "id": 7,
-          "properties": [
-            {
-              "name": "catalog_id",
-              "type": "int",
-              "value": 63
-            },
-            {
-              "name": "category",
-              "type": "string",
-              "value": "obstacle"
-            },
-            {
-              "name": "walkable",
-              "type": "bool",
-              "value": false
-            },
-            {
-              "name": "material",
-              "type": "string",
-              "value": "wood"
-            },
-            {
-              "name": "elevation",
-              "type": "int",
-              "value": 0
-            },
-            {
-              "name": "tags",
-              "type": "string",
-              "value": "prop"
-            }
-          ]
-        },
-        {
-          "id": 8,
-          "properties": [
-            {
-              "name": "catalog_id",
-              "type": "int",
-              "value": 64
-            },
-            {
-              "name": "category",
-              "type": "string",
-              "value": "obstacle"
-            },
-            {
-              "name": "walkable",
-              "type": "bool",
-              "value": false
-            },
-            {
-              "name": "material",
-              "type": "string",
-              "value": "wood"
-            },
-            {
-              "name": "elevation",
-              "type": "int",
-              "value": 0
-            },
-            {
-              "name": "tags",
-              "type": "string",
-              "value": "prop,fence"
-            }
-          ]
-        },
-        {
-          "id": 9,
-          "properties": [
-            {
-              "name": "catalog_id",
-              "type": "int",
-              "value": 65
-            },
-            {
-              "name": "category",
-              "type": "string",
-              "value": "obstacle"
-            },
-            {
-              "name": "walkable",
-              "type": "bool",
-              "value": false
-            },
-            {
-              "name": "material",
-              "type": "string",
-              "value": "wood"
-            },
-            {
-              "name": "elevation",
-              "type": "int",
-              "value": 0
-            },
-            {
-              "name": "tags",
-              "type": "string",
-              "value": "prop,fence"
-            }
-          ]
-        },
-        {
-          "id": 10,
-          "properties": [
-            {
-              "name": "catalog_id",
-              "type": "int",
-              "value": 66
-            },
-            {
-              "name": "category",
-              "type": "string",
-              "value": "obstacle"
-            },
-            {
-              "name": "walkable",
-              "type": "bool",
-              "value": false
-            },
-            {
-              "name": "material",
-              "type": "string",
-              "value": "wood"
-            },
-            {
-              "name": "elevation",
-              "type": "int",
-              "value": 0
-            },
-            {
-              "name": "tags",
-              "type": "string",
-              "value": "prop,fence"
-            }
-          ]
-        },
-        {
-          "id": 11,
-          "properties": [
-            {
-              "name": "catalog_id",
-              "type": "int",
-              "value": 67
-            },
-            {
-              "name": "category",
-              "type": "string",
-              "value": "obstacle"
-            },
-            {
-              "name": "walkable",
-              "type": "bool",
-              "value": false
-            },
-            {
-              "name": "material",
-              "type": "string",
-              "value": "wood"
-            },
-            {
-              "name": "elevation",
-              "type": "int",
-              "value": 0
-            },
-            {
-              "name": "tags",
-              "type": "string",
-              "value": "prop,fence"
-            }
-          ]
-        },
-        {
-          "id": 12,
-          "properties": [
-            {
-              "name": "catalog_id",
-              "type": "int",
-              "value": 68
-            },
-            {
-              "name": "category",
-              "type": "string",
-              "value": "obstacle"
-            },
-            {
-              "name": "walkable",
-              "type": "bool",
-              "value": false
-            },
-            {
-              "name": "material",
-              "type": "string",
-              "value": "wood"
-            },
-            {
-              "name": "elevation",
-              "type": "int",
-              "value": 0
-            },
-            {
-              "name": "tags",
-              "type": "string",
-              "value": "prop,fence"
-            }
-          ]
-        },
-        {
-          "id": 13,
-          "properties": [
-            {
-              "name": "catalog_id",
-              "type": "int",
-              "value": 69
-            },
-            {
-              "name": "category",
-              "type": "string",
-              "value": "obstacle"
-            },
-            {
-              "name": "walkable",
-              "type": "bool",
-              "value": false
-            },
-            {
-              "name": "material",
-              "type": "string",
-              "value": "wood"
-            },
-            {
-              "name": "elevation",
-              "type": "int",
-              "value": 0
-            },
-            {
-              "name": "tags",
-              "type": "string",
-              "value": "prop,fence"
-            }
-          ]
-        },
-        {
-          "id": 14,
-          "properties": [
-            {
-              "name": "catalog_id",
-              "type": "int",
-              "value": 70
-            },
-            {
-              "name": "category",
-              "type": "string",
-              "value": "obstacle"
-            },
-            {
-              "name": "walkable",
-              "type": "bool",
-              "value": false
-            },
-            {
-              "name": "material",
-              "type": "string",
-              "value": "wood"
-            },
-            {
-              "name": "elevation",
-              "type": "int",
-              "value": 0
-            },
-            {
-              "name": "tags",
-              "type": "string",
-              "value": "prop,fence"
-            }
-          ]
-        },
-        {
-          "id": 15,
-          "properties": [
-            {
-              "name": "catalog_id",
-              "type": "int",
-              "value": 71
-            },
-            {
-              "name": "category",
-              "type": "string",
-              "value": "obstacle"
-            },
-            {
-              "name": "walkable",
-              "type": "bool",
-              "value": false
-            },
-            {
-              "name": "material",
-              "type": "string",
-              "value": "wood"
-            },
-            {
-              "name": "elevation",
-              "type": "int",
-              "value": 0
-            },
-            {
-              "name": "tags",
-              "type": "string",
-              "value": "prop,fence"
-            }
-          ]
-        },
-        {
-          "id": 16,
-          "properties": [
-            {
-              "name": "catalog_id",
-              "type": "int",
-              "value": 72
-            },
-            {
-              "name": "category",
-              "type": "string",
-              "value": "decoration"
-            },
-            {
-              "name": "walkable",
-              "type": "bool",
-              "value": true
-            },
-            {
-              "name": "material",
-              "type": "string",
-              "value": "plant"
-            },
-            {
-              "name": "elevation",
-              "type": "int",
-              "value": 0
-            },
-            {
-              "name": "tags",
-              "type": "string",
-              "value": "prop"
-            }
-          ]
-        },
-        {
-          "id": 17,
-          "properties": [
-            {
-              "name": "catalog_id",
-              "type": "int",
-              "value": 73
-            },
-            {
-              "name": "category",
-              "type": "string",
-              "value": "decoration"
-            },
-            {
-              "name": "walkable",
-              "type": "bool",
-              "value": true
-            },
-            {
-              "name": "material",
-              "type": "string",
-              "value": "plant"
-            },
-            {
-              "name": "elevation",
-              "type": "int",
-              "value": 0
-            },
-            {
-              "name": "tags",
-              "type": "string",
-              "value": "prop"
-            }
-          ]
-        },
-        {
-          "id": 18,
-          "properties": [
-            {
-              "name": "catalog_id",
-              "type": "int",
-              "value": 74
-            },
-            {
-              "name": "category",
-              "type": "string",
-              "value": "decoration"
-            },
-            {
-              "name": "walkable",
-              "type": "bool",
-              "value": true
-            },
-            {
-              "name": "material",
-              "type": "string",
-              "value": "plant"
-            },
-            {
-              "name": "elevation",
-              "type": "int",
-              "value": 0
-            },
-            {
-              "name": "tags",
-              "type": "string",
-              "value": "prop"
-            }
-          ]
-        },
-        {
-          "id": 19,
-          "properties": [
-            {
-              "name": "catalog_id",
-              "type": "int",
-              "value": 75
-            },
-            {
-              "name": "category",
-              "type": "string",
-              "value": "decoration"
-            },
-            {
-              "name": "walkable",
-              "type": "bool",
-              "value": true
-            },
-            {
-              "name": "material",
-              "type": "string",
-              "value": "plant"
-            },
-            {
-              "name": "elevation",
-              "type": "int",
-              "value": 0
-            },
-            {
-              "name": "tags",
-              "type": "string",
-              "value": "prop"
-            }
-          ]
-        },
-        {
-          "id": 20,
-          "properties": [
-            {
-              "name": "catalog_id",
-              "type": "int",
-              "value": 76
-            },
-            {
-              "name": "category",
-              "type": "string",
-              "value": "decoration"
-            },
-            {
-              "name": "walkable",
-              "type": "bool",
-              "value": true
-            },
-            {
-              "name": "material",
-              "type": "string",
-              "value": "plant"
-            },
-            {
-              "name": "elevation",
-              "type": "int",
-              "value": 0
-            },
-            {
-              "name": "tags",
-              "type": "string",
-              "value": "prop"
-            }
-          ]
-        },
-        {
-          "id": 21,
-          "properties": [
-            {
-              "name": "catalog_id",
-              "type": "int",
-              "value": 77
-            },
-            {
-              "name": "category",
-              "type": "string",
-              "value": "decoration"
-            },
-            {
-              "name": "walkable",
-              "type": "bool",
-              "value": true
-            },
-            {
-              "name": "material",
-              "type": "string",
-              "value": "plant"
-            },
-            {
-              "name": "elevation",
-              "type": "int",
-              "value": 0
-            },
-            {
-              "name": "tags",
-              "type": "string",
-              "value": "prop"
-            }
-          ]
-        },
-        {
-          "id": 22,
-          "properties": [
-            {
-              "name": "catalog_id",
-              "type": "int",
-              "value": 78
-            },
-            {
-              "name": "category",
-              "type": "string",
-              "value": "decoration"
-            },
-            {
-              "name": "walkable",
-              "type": "bool",
-              "value": true
-            },
-            {
-              "name": "material",
-              "type": "string",
-              "value": "plant"
-            },
-            {
-              "name": "elevation",
-              "type": "int",
-              "value": 0
-            },
-            {
-              "name": "tags",
-              "type": "string",
-              "value": "prop"
-            }
-          ]
-        },
-        {
-          "id": 23,
-          "properties": [
-            {
-              "name": "catalog_id",
-              "type": "int",
-              "value": 79
-            },
-            {
-              "name": "category",
-              "type": "string",
-              "value": "decoration"
-            },
-            {
-              "name": "walkable",
-              "type": "bool",
-              "value": true
-            },
-            {
-              "name": "material",
-              "type": "string",
-              "value": "plant"
-            },
-            {
-              "name": "elevation",
-              "type": "int",
-              "value": 0
-            },
-            {
-              "name": "tags",
-              "type": "string",
-              "value": "prop"
-            }
-          ]
-        },
-        {
-          "id": 24,
-          "properties": [
-            {
-              "name": "catalog_id",
-              "type": "int",
-              "value": 80
-            },
-            {
-              "name": "category",
-              "type": "string",
-              "value": "decoration"
-            },
-            {
-              "name": "walkable",
-              "type": "bool",
-              "value": true
-            },
-            {
-              "name": "material",
-              "type": "string",
-              "value": "plant"
-            },
-            {
-              "name": "elevation",
-              "type": "int",
-              "value": 0
-            },
-            {
-              "name": "tags",
-              "type": "string",
-              "value": "prop"
-            }
-          ]
-        },
-        {
-          "id": 25,
-          "properties": [
-            {
-              "name": "catalog_id",
-              "type": "int",
-              "value": 81
-            },
-            {
-              "name": "category",
-              "type": "string",
-              "value": "decoration"
-            },
-            {
-              "name": "walkable",
-              "type": "bool",
-              "value": true
-            },
-            {
-              "name": "material",
-              "type": "string",
-              "value": "plant"
-            },
-            {
-              "name": "elevation",
-              "type": "int",
-              "value": 0
-            },
-            {
-              "name": "tags",
-              "type": "string",
-              "value": "prop"
-            }
-          ]
-        },
-        {
-          "id": 26,
-          "properties": [
-            {
-              "name": "catalog_id",
-              "type": "int",
-              "value": 82
-            },
-            {
-              "name": "category",
-              "type": "string",
-              "value": "decoration"
-            },
-            {
-              "name": "walkable",
-              "type": "bool",
-              "value": true
-            },
-            {
-              "name": "material",
-              "type": "string",
-              "value": "plant"
-            },
-            {
-              "name": "elevation",
-              "type": "int",
-              "value": 0
-            },
-            {
-              "name": "tags",
-              "type": "string",
-              "value": "prop"
-            }
-          ]
-        },
-        {
-          "id": 27,
-          "properties": [
-            {
-              "name": "catalog_id",
-              "type": "int",
-              "value": 83
-            },
-            {
-              "name": "category",
-              "type": "string",
-              "value": "decoration"
-            },
-            {
-              "name": "walkable",
-              "type": "bool",
-              "value": true
-            },
-            {
-              "name": "material",
-              "type": "string",
-              "value": "plant"
-            },
-            {
-              "name": "elevation",
-              "type": "int",
-              "value": 0
-            },
-            {
-              "name": "tags",
-              "type": "string",
-              "value": "prop"
-            }
-          ]
-        },
-        {
-          "id": 28,
-          "properties": [
-            {
-              "name": "catalog_id",
-              "type": "int",
-              "value": 84
-            },
-            {
-              "name": "category",
-              "type": "string",
-              "value": "decoration"
-            },
-            {
-              "name": "walkable",
-              "type": "bool",
-              "value": true
-            },
-            {
-              "name": "material",
-              "type": "string",
-              "value": "plant"
-            },
-            {
-              "name": "elevation",
-              "type": "int",
-              "value": 0
-            },
-            {
-              "name": "tags",
-              "type": "string",
-              "value": "prop"
-            }
-          ]
-        },
-        {
-          "id": 29,
-          "properties": [
-            {
-              "name": "catalog_id",
-              "type": "int",
-              "value": 85
-            },
-            {
-              "name": "category",
-              "type": "string",
-              "value": "decoration"
-            },
-            {
-              "name": "walkable",
-              "type": "bool",
-              "value": true
-            },
-            {
-              "name": "material",
-              "type": "string",
-              "value": "plant"
-            },
-            {
-              "name": "elevation",
-              "type": "int",
-              "value": 0
-            },
-            {
-              "name": "tags",
-              "type": "string",
-              "value": "prop"
-            }
-          ]
-        },
-        {
-          "id": 30,
-          "properties": [
-            {
-              "name": "catalog_id",
-              "type": "int",
-              "value": 86
-            },
-            {
-              "name": "category",
-              "type": "string",
-              "value": "decoration"
-            },
-            {
-              "name": "walkable",
-              "type": "bool",
-              "value": true
-            },
-            {
-              "name": "material",
-              "type": "string",
-              "value": "plant"
-            },
-            {
-              "name": "elevation",
-              "type": "int",
-              "value": 0
-            },
-            {
-              "name": "tags",
-              "type": "string",
-              "value": "prop"
-            }
-          ]
-        },
-        {
-          "id": 31,
-          "properties": [
-            {
-              "name": "catalog_id",
-              "type": "int",
-              "value": 87
-            },
-            {
-              "name": "category",
-              "type": "string",
-              "value": "decoration"
-            },
-            {
-              "name": "walkable",
-              "type": "bool",
-              "value": true
-            },
-            {
-              "name": "material",
-              "type": "string",
-              "value": "plant"
-            },
-            {
-              "name": "elevation",
-              "type": "int",
-              "value": 0
-            },
-            {
-              "name": "tags",
-              "type": "string",
-              "value": "prop"
-            }
-          ]
-        }
-      ],
-      "firstgid": 73
-    },
-    {
       "columns": 8,
-      "image": "tileset_3.png",
+      "image": "tileset_2.png",
       "imageheight": 224,
       "imagewidth": 1024,
       "margin": 0,
-      "name": "tileset_3",
+      "name": "tileset_2",
       "spacing": 0,
       "tilecount": 8,
       "tileheight": 224,
@@ -4728,170 +3059,11 @@
           ]
         }
       ],
-      "firstgid": 105
-    },
-    {
-      "columns": 4,
-      "image": "tileset_4.png",
-      "imageheight": 160,
-      "imagewidth": 512,
-      "margin": 0,
-      "name": "tileset_4",
-      "spacing": 0,
-      "tilecount": 4,
-      "tileheight": 160,
-      "tilewidth": 128,
-      "tileoffset": {
-        "x": 32,
-        "y": 0
-      },
-      "tiles": [
-        {
-          "id": 0,
-          "properties": [
-            {
-              "name": "catalog_id",
-              "type": "int",
-              "value": 132
-            },
-            {
-              "name": "category",
-              "type": "string",
-              "value": "obstacle"
-            },
-            {
-              "name": "walkable",
-              "type": "bool",
-              "value": false
-            },
-            {
-              "name": "material",
-              "type": "string",
-              "value": "plant"
-            },
-            {
-              "name": "elevation",
-              "type": "int",
-              "value": 0
-            },
-            {
-              "name": "tags",
-              "type": "string",
-              "value": "tree,tall"
-            }
-          ]
-        },
-        {
-          "id": 1,
-          "properties": [
-            {
-              "name": "catalog_id",
-              "type": "int",
-              "value": 133
-            },
-            {
-              "name": "category",
-              "type": "string",
-              "value": "obstacle"
-            },
-            {
-              "name": "walkable",
-              "type": "bool",
-              "value": false
-            },
-            {
-              "name": "material",
-              "type": "string",
-              "value": "plant"
-            },
-            {
-              "name": "elevation",
-              "type": "int",
-              "value": 0
-            },
-            {
-              "name": "tags",
-              "type": "string",
-              "value": "tree,tall"
-            }
-          ]
-        },
-        {
-          "id": 2,
-          "properties": [
-            {
-              "name": "catalog_id",
-              "type": "int",
-              "value": 134
-            },
-            {
-              "name": "category",
-              "type": "string",
-              "value": "obstacle"
-            },
-            {
-              "name": "walkable",
-              "type": "bool",
-              "value": false
-            },
-            {
-              "name": "material",
-              "type": "string",
-              "value": "plant"
-            },
-            {
-              "name": "elevation",
-              "type": "int",
-              "value": 0
-            },
-            {
-              "name": "tags",
-              "type": "string",
-              "value": "tree,tall"
-            }
-          ]
-        },
-        {
-          "id": 3,
-          "properties": [
-            {
-              "name": "catalog_id",
-              "type": "int",
-              "value": 135
-            },
-            {
-              "name": "category",
-              "type": "string",
-              "value": "obstacle"
-            },
-            {
-              "name": "walkable",
-              "type": "bool",
-              "value": false
-            },
-            {
-              "name": "material",
-              "type": "string",
-              "value": "plant"
-            },
-            {
-              "name": "elevation",
-              "type": "int",
-              "value": 0
-            },
-            {
-              "name": "tags",
-              "type": "string",
-              "value": "tree,tall"
-            }
-          ]
-        }
-      ],
-      "firstgid": 113
+      "firstgid": 73
     }
   ],
   "tilewidth": 64,
   "type": "map",
   "version": "1.10",
-  "width": 20
+  "width": 12
 }

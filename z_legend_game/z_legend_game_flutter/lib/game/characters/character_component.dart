@@ -1,9 +1,11 @@
 import 'dart:math' as math;
 
 import 'package:flame/components.dart';
+import 'package:flame/extensions.dart' show Rect;
 import 'package:flame/sprite.dart';
 
 import '../iso/iso_math.dart';
+import '../level/walkability.dart';
 import 'sprite_sheet_meta.dart';
 
 /// Direction indices matching ASSET_SPEC §4 row order.
@@ -55,6 +57,7 @@ abstract class CharacterComponent extends PositionComponent
     required this.imageBaseName,
     required this.jsonBaseName,
     required this.isoMath,
+    required this.walkability,
     required int startCol,
     required int startRow,
   }) : _col = startCol,
@@ -65,6 +68,9 @@ abstract class CharacterComponent extends PositionComponent
 
   /// Reference to the map's coordinate math. Provided by the level loader.
   final IsoMath isoMath;
+
+  /// Which cells the character may enter (the shared movement rule).
+  final WalkabilityGrid walkability;
 
   int _col;
   int _row;
@@ -85,6 +91,15 @@ abstract class CharacterComponent extends PositionComponent
 
   bool _dead = false;
   bool get isDead => _dead;
+
+  /// The current animation.
+  CharAnim get currentAnimation => _currentAnim;
+
+  /// The direction the character faces.
+  IsoDirection get facing => _facing;
+
+  /// The sprite frame rectangle in world coordinates, once loaded.
+  Rect? get spriteRect => _sprite?.toAbsoluteRect();
 
   @override
   Future<void> onLoad() async {
@@ -130,7 +145,7 @@ abstract class CharacterComponent extends PositionComponent
         meta.frameHeight.toDouble(),
       );
     }
-    priority = IsoMath.depthPriority(_col, _row);
+    priority = IsoMath.depthPriority(_col, _row, DepthLayer.character);
   }
 
   void _playAnim(CharAnim anim) {
@@ -187,9 +202,12 @@ abstract class CharacterComponent extends PositionComponent
     if (!_dead) _playAnim(_currentAnim);
   }
 
-  /// Plays an animation. Ignored while dead (except [CharAnim.die]).
+  /// Plays an animation. Ignored while dead (except [CharAnim.die]) and
+  /// while [anim] is already playing: restarting it every frame would keep
+  /// it on its first frame.
   void playAnimation(CharAnim anim) {
     if (_dead && anim != CharAnim.die) return;
+    if (anim == _currentAnim && _sprite != null) return;
     _playAnim(anim);
   }
 
@@ -214,6 +232,6 @@ abstract class CharacterComponent extends PositionComponent
   @override
   void update(double dt) {
     super.update(dt);
-    priority = IsoMath.depthPriority(_col, _row);
+    priority = IsoMath.depthPriority(_col, _row, DepthLayer.character);
   }
 }

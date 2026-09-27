@@ -192,7 +192,8 @@ def test_full_pack_job(client):
 
     summary = job["summary"]
     assert summary["tile_count_by_category"] == {"floor": 400, "obstacle": 32, "decoration": 20}
-    assert summary["path_check"] == {"path_found": True, "path_length": 19}
+    # Longer than the 19-step diagonal: the path check does not cut corners.
+    assert summary["path_check"] == {"path_found": True, "path_length": 22}
     assert summary["overlay"] == {"obstacles_placed": 32, "decorations_placed": 20, "obstacles_removed": 0}
 
 

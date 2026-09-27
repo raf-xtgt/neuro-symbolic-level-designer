@@ -9,9 +9,14 @@ import 'level_source.dart';
 /// Loads a Tiled level bundle from a [LevelSource] and returns a
 /// [TiledComponent] ready to be added to the game world.
 class LevelLoader {
-  const LevelLoader(this.source);
+  LevelLoader(this.source)
+    : images = Images(prefix: source.prefix, bundle: source.bundle);
 
   final LevelSource source;
+
+  /// The cache the tileset images are loaded into. Sprites cut from the same
+  /// images (the `Objects` layer, see `object_sprites.dart`) reuse it.
+  final Images images;
 
   /// Map filename inside the bundle.
   static const String _mapFile = 'level.tmj';
@@ -30,7 +35,7 @@ class LevelLoader {
     final renderable = await RenderableTiledMap.fromTiledMap(
       map,
       Vector2(map.tileWidth.toDouble(), map.tileHeight.toDouble()),
-      images: Images(prefix: source.prefix, bundle: source.bundle),
+      images: images,
       bundle: source.bundle,
     );
     return TiledComponent(renderable);

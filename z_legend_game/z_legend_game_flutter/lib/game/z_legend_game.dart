@@ -14,6 +14,8 @@ import 'characters/zombie_component.dart';
 import 'iso/iso_math.dart';
 import 'level/level_loader.dart';
 import 'level/level_source.dart';
+import 'level/object_sprites.dart';
+import 'level/walkability.dart';
 import 'triggers/exit_trigger.dart';
 
 /// Game states.
@@ -35,10 +37,23 @@ class ZLegendGame extends FlameGame
   // ignore: invalid_use_of_visible_for_testing_member
   PlayerComponent? get playerForTest => _player;
 
+  /// Exposed for tests only.
+  List<ZombieComponent> get zombiesForTest => List.unmodifiable(_zombies);
+
+  /// Exposed for tests only.
+  List<ObjectSprite> get objectSpritesForTest =>
+      List.unmodifiable(_objectSprites);
+
+  /// Exposed for tests only.
+  WalkabilityGrid? get walkabilityForTest => _walkability;
+
   PlayerComponent? _player;
   final List<ZombieComponent> _zombies = [];
   ExitTrigger? _exitTrigger;
   IsoMath? _isoMath;
+  WalkabilityGrid? _walkability;
+  final List<ObjectSprite> _objectSprites = [];
+  OcclusionGuard? _occlusionGuard;
 
   _GameState _state = _GameState.playing;
   bool _debugOverlay = false;
@@ -66,6 +81,8 @@ class ZLegendGame extends FlameGame
     _player = null;
     _zombies.clear();
     _exitTrigger = null;
+    _objectSprites.clear();
+    _occlusionGuard = null;
     _debugMarkers.clear();
 
     final loader = LevelLoader(_source);
@@ -80,7 +97,19 @@ class ZLegendGame extends FlameGame
       mapRows: tileMap.map.height,
     );
 
+    _walkability = WalkabilityGrid.fromMap(tileMap.map);
+
+    // The Ground layer stays in the TiledComponent, below everything. The
+    // Objects layer becomes one sprite per cell, so trees and rocks sort in
+    // depth with the characters.
+    tiledMap.priority = IsoMath.groundPriority;
+    _objectSprites.addAll(
+      await extractObjectSprites(tiledMap, _isoMath!, loader.images),
+    );
+    _occlusionGuard = OcclusionGuard(_objectSprites);
+
     await _world.add(tiledMap);
+    await _world.addAll(_objectSprites);
     _spawnEntities(tiledMap);
 
     // After player is available, spawn zombies (they need a player reference).
@@ -91,6 +120,7 @@ class ZLegendGame extends FlameGame
           startCol: col,
           startRow: row,
           isoMath: _isoMath!,
+          walkability: _walkability!,
           player: player,
         );
         _zombies.add(z);
@@ -118,6 +148,7 @@ class ZLegendGame extends FlameGame
             startCol: col,
             startRow: row,
             isoMath: _isoMath!,
+            walkability: _walkability!,
           );
           _player = p;
           _world.add(p);
@@ -186,10 +217,19 @@ class ZLegendGame extends FlameGame
   @override
   void update(double dt) {
     super.update(dt);
+    _updateOcclusion();
     if (_state != _GameState.playing) return;
 
     _checkZombieHitsPlayer();
     _checkPlayerAtExit();
+  }
+
+  /// Fades tall obstacles that hide the player (ARCHITECTURE.md 4.1.2).
+  void _updateOcclusion() {
+    final player = _player;
+    final rect = player?.spriteRect;
+    if (player == null || rect == null) return;
+    _occlusionGuard?.update(rect, player.priority);
   }
 
   void _checkZombieHitsPlayer() {
@@ -261,6 +301,27 @@ class ZLegendGame extends FlameGame
     final paint = Paint()
       ..color = const Color(0xFFFF0000)
       ..style = PaintingStyle.fill;
+
+    // Blocked cells: red diamond outlines.
+    final outline = Paint()
+      ..color = const Color(0xFFFF0000)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+    for (final (col, row) in _walkability?.blockedCells ?? <(int, int)>{}) {
+      final c = iso.gridToWorldCenter(col, row);
+      final hw = iso.tileWidth / 2;
+      final hh = iso.tileHeight / 2;
+      final corners = [
+        _camera.localToGlobal(c + Vector2(0, -hh)),
+        _camera.localToGlobal(c + Vector2(hw, 0)),
+        _camera.localToGlobal(c + Vector2(0, hh)),
+        _camera.localToGlobal(c + Vector2(-hw, 0)),
+      ];
+      canvas.drawPath(
+        Path()..addPolygon([for (final p in corners) Offset(p.x, p.y)], true),
+        outline,
+      );
+    }
 
     for (final marker in _debugMarkers) {
       final world = iso.gridToWorldCenter(marker.col, marker.row);

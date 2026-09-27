@@ -85,3 +85,26 @@ The `Objects` tile layer is drawn by flame_tiled as one flat layer, so it cannot
 - Report the new slicer numbers (padded and tight), and list the manual browser checks for me: walk into a tree
   (blocked), walk behind a tree (player drawn behind it, tree faded), walk in front of a tree (player in front),
   zombie goes around obstacles, F1 shows blocked cells.
+
+---
+
+## Prompt 2: Ground layer drawn on top in the browser
+
+**Symptom (browser only):** after "Try Out" with `grassland_full`, the ground tiles cover the player, zombies, and all
+object sprites. Only the parts of tall sprites that stick out past the map edge are visible. All tests pass.
+
+**Cause (verified):** `lib/game/iso/iso_math.dart` has `static const int groundPriority = -1 << 30;`.
+On the Dart VM (tests) this is `-1073741824`. On the web (dart2js), bitwise shift results are unsigned 32-bit, so it
+compiles to `3221225472`, a large positive number. The ground `TiledComponent` then gets the highest priority and is
+drawn last, on top of everything. (Checked with `dart compile js`: the constant is emitted as `3221225472`.)
+
+**Fix:**
+1. `groundPriority`: use a plain negative literal, for example `static const int groundPriority = -1000000000;`
+   (still below every `depthPriority`, which is at least 0). Do not use bitwise operators to build it.
+2. Search `lib/` for other bitwise operators (`<<`, `>>`, `>>>`, `&`, `|`, `^`, `~`) on `int` values that can be
+   negative or larger than 32 bits, and replace them with arithmetic. Report what you found.
+3. Test `test/iso_math_test.dart`: `groundPriority` is negative and below `depthPriority(0, 0, DepthLayer.exitTrigger)`.
+   (This passes on the VM either way. It documents the rule; the rule itself is in `z_legend_game/AGENTS.md`.)
+
+**Done when:** `dart analyze` 0 issues, `flutter test` passes, `flutter build web` succeeds, and
+`grep -rn "<<" lib/` finds no shift used for a priority or other signed value. Then I re-run the browser check.

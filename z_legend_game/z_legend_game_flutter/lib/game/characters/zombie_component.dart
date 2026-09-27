@@ -6,12 +6,14 @@ import 'package:flame/components.dart';
 import 'character_component.dart';
 import 'player_component.dart';
 
-/// Zombie enemy. Chases the player when within 5 tiles.
+/// Zombie enemy. Chases the player when within 5 tiles, along the shortest
+/// path on the [WalkabilityGrid] (around obstacles, never into them).
 class ZombieComponent extends CharacterComponent {
   ZombieComponent({
     required super.startCol,
     required super.startRow,
     required super.isoMath,
+    required super.walkability,
     required this.player,
   }) : super(
          imageBaseName: 'characters/zombie',
@@ -55,14 +57,17 @@ class ZombieComponent extends CharacterComponent {
       return;
     }
 
-    // Chase player
-    final dcol = player.col - col;
-    final drow = player.row - row;
-
-    if (dcol == 0 && drow == 0) {
+    // Chase the player along a BFS path, recomputed every update (the map
+    // is small), so the zombie follows the player and goes around obstacles.
+    final path = walkability.findPath((col, row), (player.col, player.row));
+    if (path == null || path.length < 2) {
+      _stepTimer = 0;
       playAnimation(CharAnim.idle);
       return;
     }
+    final (nextCol, nextRow) = path[1];
+    final dcol = nextCol - col;
+    final drow = nextRow - row;
 
     // Face movement direction: convert grid delta to screen delta.
     final screenDx = (dcol - drow).toDouble();
@@ -73,12 +78,8 @@ class ZombieComponent extends CharacterComponent {
     _stepTimer += dt;
     if (_stepTimer >= _stepInterval) {
       _stepTimer = 0;
-      final stepCol = dcol.clamp(-1, 1);
-      final stepRow = drow.clamp(-1, 1);
-      final newCol = col + stepCol;
-      final newRow = row + stepRow;
-      if (isoMath.inBounds(newCol, newRow)) {
-        setGridPosition(newCol, newRow);
+      if (isoMath.inBounds(nextCol, nextRow)) {
+        setGridPosition(nextCol, nextRow);
       }
     }
   }

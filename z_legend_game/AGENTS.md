@@ -33,6 +33,8 @@ Flutter web app (z_legend_game_flutter)
 ## Game Rules
 
 * Target platform: **web** (Chrome). Do not use packages or APIs that do not work on Flutter web (for example `dart:io` file access).
+* **Web number semantics:** on the web, `int` is a JavaScript number and bitwise operators (`<<`, `>>`, `&`, `|`, `^`, `~`) return unsigned 32-bit results. `-1 << 30` is `-1073741824` on the VM (tests) but `3221225472` in the browser. Do not use bitwise operators to build signed or large values (priorities, offsets, IDs); use plain literals or arithmetic. Tests run on the VM and do not catch this.
+* Tests run on the Dart VM. A passing `flutter test` does not prove browser behavior: always do a browser check for rendering changes.
 * Engine: `flame` + `flame_tiled`. Follow `../.bob/rules/flame_isometric_rules.md`.
 * Map format: Tiled JSON (`.tmj` / `.tsj`), orientation `isometric`, tile size 64 x 32.
 * **Isometric object coordinates:** in a `.tmj`, object `x` and `y` are both in tile-height units (x = col * 32, y = row * 32 for 64 x 32 tiles). Convert them to screen space with the isometric projection. Do not treat them as screen pixels.
