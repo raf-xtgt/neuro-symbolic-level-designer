@@ -43,6 +43,8 @@ def test_evaluation_prompt_job(client, prompt):
     nodes = [s["node"] for s in job["planning_steps"]]
     assert nodes[0] == "topology_agent" and nodes[-1] == "validator"
     assert job["planning_steps"][-1]["status"] == "done"
+    assert [(s["node"], s["status"]) for s in job["execution_steps"]] == [
+        ("mechanics_agent", "done"), ("codegen", "done"), ("verification", "done")]
 
     for name in ("level.tmj", "preview_level.png", "topology_graph.json", "validation_report.json"):
         assert client.get(created["bundle_url"] + name).status_code == 200, name

@@ -95,7 +95,11 @@ enum StageState { pending, running, done, failed }
 /// The pipeline stages, in order, keyed as in the job status.
 const List<String> jobStages = ['ingesting', 'planning', 'executing'];
 
-/// One node run of the planning graph (`planning_steps`).
+/// The asset pack used when no spritesheet is uploaded.
+const String defaultAssetPack = 'grassland_full';
+
+/// One node run of the planning graph (`planning_steps`), or one execution
+/// step (`execution_steps`).
 class PlanningStep {
   const PlanningStep({
     required this.node,
@@ -114,12 +118,13 @@ class PlanningStep {
   /// E.g. `topology_agent`, `layout_builder`, `validator`.
   final String node;
 
-  /// `done` or `failed`.
+  /// `running`, `done` or `failed`.
   final String status;
   final int attempt;
   final String message;
 
   bool get failed => status == 'failed';
+  bool get running => status == 'running';
 }
 
 /// One step of Pipeline 1 for uploaded sheets (`ingestion_steps`).
@@ -164,6 +169,8 @@ class JobStatus {
     this.summary,
     this.ingestionSteps = const [],
     this.planningSteps = const [],
+    this.executionSteps = const [],
+    this.source = const {},
   });
 
   factory JobStatus.fromJson(Map<String, dynamic> json) {
@@ -185,6 +192,10 @@ class JobStatus {
       planningSteps: (json['planning_steps'] as List? ?? const [])
           .map((s) => PlanningStep.fromJson(s as Map<String, dynamic>))
           .toList(),
+      executionSteps: (json['execution_steps'] as List? ?? const [])
+          .map((s) => PlanningStep.fromJson(s as Map<String, dynamic>))
+          .toList(),
+      source: json['source'] as Map<String, dynamic>? ?? const {},
     );
   }
 
@@ -201,6 +212,21 @@ class JobStatus {
   final JobSummary? summary;
   final List<IngestionStep> ingestionSteps;
   final List<PlanningStep> planningSteps;
+
+  /// Pipeline 3 steps: `mechanics_agent`, `codegen`, `verification`.
+  final List<PlanningStep> executionSteps;
+
+  /// `{"asset_pack": id}` or `{"spritesheets": [names]}`.
+  final Map<String, dynamic> source;
+
+  /// The spritesheet source for the result, or null when unknown.
+  String? get sourceLabel {
+    final sheets = (source['spritesheets'] as List?)?.cast<String>();
+    if (sheets != null && sheets.isNotEmpty) return sheets.join(', ');
+    final pack = source['asset_pack'] as String?;
+    if (pack == null) return null;
+    return pack == defaultAssetPack ? 'Default grassland spritesheet' : pack;
+  }
 
   bool get isDone => status == 'done';
   bool get isFailed => status == 'failed';

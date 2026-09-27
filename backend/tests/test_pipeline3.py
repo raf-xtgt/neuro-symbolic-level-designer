@@ -19,7 +19,7 @@ from PIL import Image
 from app.main import create_app
 from pipeline.execution.codegen import CodegenError, camel_case, render_level_loader
 from pipeline.execution.compile import run_compile
-from pipeline.execution.mechanics import DEFAULTS, LevelMechanics, RoomMechanics, generate_mechanics
+from pipeline.execution.mechanics import DEFAULTS, LevelMechanics, RoomMechanics, generate_mechanics, run_mechanics
 from pipeline.execution.verification import check_dart_analyze, run_checks
 from pipeline.llm.base import LLMUnavailableError
 from pipeline.llm.fake import FakeProvider
@@ -73,10 +73,14 @@ def test_mechanics_ranges_are_enforced():
 def test_planner_writes_zombie_properties(tmp_path):
     graph = TOPOLOGIES["three_line"]
     mech = LevelMechanics(rooms=[_mech("c"), _mech("b", "guard_exit")])
-    result = run_planning("graveyard", FULL_CATALOG, tmp_path, provider=FakeProvider([graph, mech]))
+    provider = FakeProvider([graph, mech])
+    result = run_planning("graveyard", FULL_CATALOG, tmp_path, provider=provider)
+    assert all(o.get("properties") is None for o in json.loads(result.plan_path.read_text())["objects"])
+    mechanics = run_mechanics(result, "graveyard", provider)  # the execution stage's first step
+    assert mechanics.source == "llm"
     plan = json.loads(result.plan_path.read_text())
     zombies = [o for o in plan["objects"] if o["type"] == "Zombie"]
-    assert len(zombies) == 7 and not result.warnings
+    assert len(zombies) == 7 and not result.warnings and not mechanics.warnings
     for z in zombies:
         p = z["properties"]
         assert p["behavior"] == ("guard_exit" if p["room_id"] == "b" else "patrol_room")
@@ -95,7 +99,9 @@ def bundle(tmp_path_factory) -> Path:
     """A compiled agentic level (grassland_full) with zombies."""
     work = tmp_path_factory.mktemp("level")
     mech = LevelMechanics(rooms=[_mech("c"), _mech("b", "guard_exit")])
-    result = run_planning("graveyard", FULL_CATALOG, work, provider=FakeProvider([TOPOLOGIES["three_line"], mech]))
+    provider = FakeProvider([TOPOLOGIES["three_line"], mech])
+    result = run_planning("graveyard", FULL_CATALOG, work, provider=provider)
+    run_mechanics(result, "graveyard", provider)
     with contextlib.redirect_stdout(io.StringIO()):
         run_compile(str(result.plan_path), str(FULL_CATALOG), str(work / "bundle"), prompt="graveyard")
     return work / "bundle"
@@ -293,3 +299,13 @@ def test_api_bundle_zip_and_new_files(tmp_path):
 
     assert client.get("/api/levels/not-a-uuid/bundle.zip").status_code == 404
     assert client.get("/api/levels/00000000-0000-0000-0000-000000000000/bundle.zip").status_code == 404
+
+
+def test_placeholder_plans_get_default_mechanics(tmp_path):
+    result = run_planning("a quiet meadow", FULL_CATALOG, tmp_path, planner="placeholder")
+    mechanics = run_mechanics(result, "a quiet meadow", FakeProvider([]))
+    assert mechanics.source == "defaults" and not mechanics.warnings
+    zombies = [o for o in json.loads(result.plan_path.read_text())["objects"] if o["type"] == "Zombie"]
+    assert zombies and all(
+        z["properties"] == {"chase_range": 5, "step_interval_ms": 350, "behavior": "idle_until_near"} for z in zombies
+    )

@@ -20,6 +20,7 @@ turns into Tiled object properties: ``chase_range``, ``step_interval_ms``,
 """
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -165,3 +166,40 @@ def _room_of(layout: Layout, cell: tuple[int, int]) -> str | None:
 def summary(mechanics: MechanicsResult) -> dict:
     return {"source": mechanics.source, "rooms": mechanics.rooms, "llm_usage": mechanics.usage}
 
+
+def run_mechanics(planning, prompt: str, provider: LLMProvider | None = None) -> MechanicsResult:
+    """
+    The execution stage's mechanics step for a ``PlanningResult``: agentic
+    plans get the LLM's values (placeholder plans the defaults), written onto
+    the enemy objects of ``level_plan.json``; the planning summary gets the
+    per-room values. Never raises for LLM problems.
+    """
+    from pipeline.planning.run import write_plan  # the planning stage imports nothing from here
+
+    if planning.layout is None:
+        mechanics = MechanicsResult({}, "defaults")
+    else:
+        if provider is None:
+            try:
+                from pipeline.llm.factory import get_provider
+                provider = get_provider()
+            except LLMError as exc:
+                return _apply(planning, defaults(planning.rooms, f"the LLM is not configured ({exc})"))
+        plan = json.loads(planning.plan_path.read_text(encoding="utf-8"))
+        mechanics = generate_mechanics(
+            prompt, planning.rooms, sorted({o["type"] for o in plan["objects"]}), provider, planning.exit_room,
+        )
+    return _apply(planning, mechanics, write_plan)
+
+
+def _apply(planning, mechanics: MechanicsResult, write=None) -> MechanicsResult:
+    if write is None:
+        from pipeline.planning.run import write_plan as write
+    plan = json.loads(planning.plan_path.read_text(encoding="utf-8"))
+    apply_to_plan(plan, mechanics, planning.layout)
+    write(plan, planning.plan_path.parent)
+    planning.summary["mechanics"] = summary(mechanics)
+    for room in planning.summary.get("rooms", []):
+        if room["id"] in mechanics.rooms:
+            room["mechanics"] = mechanics.rooms[room["id"]]
+    return mechanics

@@ -28,6 +28,8 @@ JobStatus _job(
   String? errorCode,
   JobSummary? summary,
   List<PlanningStep> steps = const [],
+  List<PlanningStep> executionSteps = const [],
+  Map<String, dynamic> source = const {},
 }) => JobStatus(
   jobId: 'abc',
   status: status,
@@ -37,6 +39,8 @@ JobStatus _job(
   errorMessage: errorCode == null ? null : 'server message',
   summary: summary,
   planningSteps: steps,
+  executionSteps: executionSteps,
+  source: source,
 );
 
 const _steps = [
@@ -193,41 +197,88 @@ void main() {
           StageState.pending,
           StageState.pending,
         ]),
-        _job('planning', [
-          StageState.done,
-          StageState.running,
-          StageState.pending,
-        ]),
-        _job('executing', [
-          StageState.done,
-          StageState.done,
-          StageState.running,
-        ]),
+        _job(
+          'planning',
+          [StageState.done, StageState.running, StageState.pending],
+          steps: const [
+            PlanningStep(
+              node: 'topology_agent',
+              status: 'done',
+              attempt: 1,
+              message: '3 rooms, 7 enemies',
+            ),
+            PlanningStep(
+              node: 'layout_builder',
+              status: 'running',
+              attempt: 1,
+              message: '',
+            ),
+          ],
+        ),
+        _job(
+          'executing',
+          [StageState.done, StageState.done, StageState.running],
+          executionSteps: const [
+            PlanningStep(
+              node: 'mechanics_agent',
+              status: 'done',
+              attempt: 1,
+              message: '2 rooms: patrol_room 2',
+            ),
+            PlanningStep(
+              node: 'codegen',
+              status: 'running',
+              attempt: 1,
+              message: '',
+            ),
+          ],
+        ),
         _job(
           'done',
           [StageState.done, StageState.done, StageState.done],
           summary: _summary,
+          source: const {'asset_pack': 'grassland_full'},
         ),
       ],
     );
     await _pump(tester, api);
-    expect(find.text('Grass and stone.'), findsOneWidget);
+    expect(find.byKey(const Key('asset_pack')), findsNothing);
+    expect(find.byKey(const Key('planner')), findsNothing);
+    expect(
+      find.text(
+        'Upload your isometric spritesheets (PNG). If you do not upload '
+        'any, the default grassland spritesheet is used.',
+      ),
+      findsOneWidget,
+    );
 
     await tester.enterText(find.byKey(const Key('prompt')), 'graveyard');
     await _tap(tester, find.text('Generate level'));
     await tester.pump();
 
     expect(api.lastRequest?.prompt, 'graveyard');
-    expect(api.lastRequest?.assetPack, 'grassland_starter');
+    expect(api.lastRequest?.assetPack, 'grassland_full');
+    expect(api.lastRequest?.spritesheets, isEmpty);
+    expect(api.lastRequest?.planner, Planner.agentic);
     expect(_stateOf(tester, '1. Data Ingestion'), 'running');
     expect(find.text('Try Out'), findsNothing);
 
     await tester.pump(const Duration(milliseconds: 500));
     expect(_stateOf(tester, '1. Data Ingestion'), 'done');
     expect(_stateOf(tester, '2. Level Planning'), 'running');
+    expect(
+      find.text('Topology agent (AI) (attempt 1): 3 rooms, 7 enemies'),
+      findsOneWidget,
+    );
+    expect(find.text('Placing rooms and corridors...'), findsOneWidget);
 
     await tester.pump(const Duration(milliseconds: 500));
     expect(_stateOf(tester, '3. Execution'), 'running');
+    expect(
+      find.text('Enemy behavior agent (AI): 2 rooms: patrol_room 2'),
+      findsOneWidget,
+    );
+    expect(find.text('Generating Flame code...'), findsOneWidget);
 
     await tester.pump(const Duration(milliseconds: 500));
     await tester.pump();
@@ -235,6 +286,7 @@ void main() {
       expect(_stateOf(tester, label), 'done');
     }
     expect(find.text('20 x 20 tiles'), findsOneWidget);
+    expect(find.text('Default grassland spritesheet'), findsOneWidget);
     expect(find.text('grass: 380, stone: 20'), findsOneWidget);
     expect(find.text('Try Out'), findsOneWidget);
     expect(find.byType(Image), findsOneWidget);
@@ -318,6 +370,9 @@ void main() {
           },
           warnings: const [],
           ingestionSteps: done,
+          source: const {
+            'spritesheets': ['sheet.png'],
+          },
           summary: const JobSummary(
             mapWidth: 30,
             mapHeight: 30,
@@ -333,17 +388,20 @@ void main() {
     );
 
     await tester.enterText(find.byKey(const Key('prompt')), 'graveyard');
-    await _tap(tester, find.text('Upload spritesheets'));
-    expect(find.textContaining('not available yet'), findsNothing);
     await _tap(tester, find.text('Add files').first);
     await _tap(tester, find.text('Generate level'));
     await tester.pump();
 
     expect(api.lastRequest?.spritesheets.single.name, 'sheet.png');
+    expect(api.lastRequest?.assetPack, isNull);
     expect(_stateOf(tester, '1. Data Ingestion'), 'running');
     expect(
+      find.text('Pre-processor: 307 chips (tile size 64 x 32)'),
+      findsOneWidget,
+    );
+    expect(
       find.text(
-        'Classification agent (AI) [3/10]: 3 of 10 batches',
+        'AI-powered tile classification is running... (3 of 10 batches)',
       ),
       findsOneWidget,
     );
@@ -352,9 +410,12 @@ void main() {
     await tester.pump();
     await tester.pump();
     expect(
-      find.text('Classification agent (AI) [10/10]: 10 of 10 batches'),
+      find.text(
+        'Classification agent (AI) (10 of 10 batches): 10 of 10 batches',
+      ),
       findsOneWidget,
     );
+    expect(find.text('sheet.png'), findsWidgets);
     expect(
       find.text('Quality gate: floor families: grass (16)'),
       findsOneWidget,
@@ -387,7 +448,6 @@ void main() {
       pick: (_) async => [LevelFile(name: 'chars.png', bytes: _png)],
     );
     await tester.enterText(find.byKey(const Key('prompt')), 'graveyard');
-    await _tap(tester, find.text('Upload spritesheets'));
     await _tap(tester, find.text('Add files').first);
     await _tap(tester, find.text('Generate level'));
     await tester.pump();
@@ -622,9 +682,7 @@ void main() {
     expect(find.text('Try Out'), findsNothing);
   });
 
-  testWidgets('placeholder planner choice and LLM error message', (
-    tester,
-  ) async {
+  testWidgets('always the AI planner; LLM error message', (tester) async {
     final api = _FakeApi(
       jobs: [
         _job('failed', [
@@ -636,18 +694,14 @@ void main() {
     );
     await _pump(tester, api);
     await tester.enterText(find.byKey(const Key('prompt')), 'graveyard');
-    await _tap(tester, find.byKey(const Key('planner')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Placeholder').last);
-    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('planner')), findsNothing);
     await _tap(tester, find.text('Generate level'));
     await tester.pump();
 
-    expect(api.lastRequest?.planner, Planner.placeholder);
+    expect(api.lastRequest?.planner, Planner.agentic);
     expect(
       find.text(
-        'The AI planner could not reach the model. Try again, or choose the '
-        'Placeholder planner. (server message)',
+        'The AI planner could not reach the model. Try again. (server message)',
       ),
       findsOneWidget,
     );
@@ -669,7 +723,6 @@ void main() {
     await _tap(tester, find.text('Retry'));
     await tester.pump();
     expect(find.textContaining('Backend not reachable'), findsNothing);
-    expect(find.text('Grass and stone.'), findsOneWidget);
   });
 }
 

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flame_test/flame_test.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -80,15 +82,20 @@ void main() {
       // Straight west of the zombie, 4 cells away, with the wall between.
       player.setGridPosition(7, 2);
       final visited = <(int, int)>[(zombie.col, zombie.row)];
-      for (var i = 0; i < 30 && !player.isDead; i++) {
+      for (var i = 0; i < 30 && player.health.hp == 6; i++) {
         game.update(0.36); // just over one zombie step
         if (visited.last != (zombie.col, zombie.row)) {
           visited.add((zombie.col, zombie.row));
         }
       }
 
-      expect(player.isDead, isTrue, reason: 'zombie reached the player');
-      expect(visited.last, (7, 2));
+      expect(player.health.hp, 5, reason: 'zombie reached and hit the player');
+      final (lastCol, lastRow) = visited.last;
+      expect(
+        [(lastCol - 7).abs(), (lastRow - 2).abs()].reduce(math.max),
+        1,
+        reason: 'it stops next to the player, not on its cell',
+      );
       for (final (col, row) in visited) {
         expect(grid.isOpen(col, row), isTrue, reason: 'entered ($col, $row)');
       }
@@ -107,6 +114,56 @@ void main() {
         visited.where((c) => c.$1 == 9).single.$2,
         isNot(inInclusiveRange(1, 3)),
       );
+    },
+  );
+
+  tester.testGameWidget(
+    'a zombie next to the player attacks every second; 6 hits kill',
+    setUp: (game, _) => waitForLevel(game),
+    verify: (game, widgetTester) async {
+      final player = game.playerForTest!;
+      final zombie = game.zombiesForTest.single;
+      final hud = game.healthBarForTest!;
+      expect(hud.filledSegments, 6);
+
+      player.setGridPosition(10, 2); // west of the zombie on (11, 2)
+      game.update(0.01);
+      expect(player.health.hp, 5);
+      expect(hud.filledSegments, 5);
+      expect(zombie.currentAnimation, CharAnim.attack);
+      expect(zombie.facing, IsoDirection.fromDelta(-1, -1));
+      expect((zombie.col, zombie.row), (11, 2), reason: 'it stops to attack');
+
+      game.update(0.7); // 0.71 s: still on cooldown
+      expect(player.health.hp, 5);
+      game.update(0.31); // 1.02 s
+      expect(player.health.hp, 4);
+      expect(hud.filledSegments, 4);
+
+      var hits = 2;
+      for (var i = 0; i < 100 && !game.isPlayerDeadForTest; i++) {
+        final before = player.health.hp;
+        game.update(0.1);
+        if (player.health.hp < before) hits++;
+        if (hits < 6) expect(game.isPlayerDeadForTest, isFalse);
+      }
+      expect(hits, 6);
+      expect(game.isPlayerDeadForTest, isTrue);
+      expect(hud.filledSegments, 0);
+      expect((zombie.col, zombie.row), (11, 2));
+
+      // R restarts with full health.
+      await widgetTester.sendKeyDownEvent(LogicalKeyboardKey.keyR);
+      await widgetTester.sendKeyUpEvent(LogicalKeyboardKey.keyR);
+      for (var i = 0; i < 200 && identical(game.healthBarForTest, hud); i++) {
+        await widgetTester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 20)),
+        );
+        await widgetTester.pump();
+      }
+      expect(game.isPlayerDeadForTest, isFalse);
+      expect(game.healthBarForTest!.filledSegments, 6);
+      expect(game.healthBarForTest, isNot(same(hud)));
     },
   );
 

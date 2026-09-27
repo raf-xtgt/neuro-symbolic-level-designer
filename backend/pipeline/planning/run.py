@@ -10,9 +10,9 @@ Planners:
     Also writes ``topology_graph.json`` and ``validation_report.json``.
   * ``placeholder``: the temporary seeded planner (``placeholder_planner.py``).
 
-Then the entity mechanics agent (``pipeline/execution/mechanics.py``, one LLM
-call, agentic only; defaults for the placeholder) writes chase range, speed,
-behavior and room onto every ``Zombie`` object of the plan.
+The result carries what the entity mechanics agent of the execution stage
+needs (``pipeline/execution/mechanics.py``): the rooms, the layout and the
+exit room.
 
 Both are seeded by a stable hash of the prompt.
 """
@@ -25,9 +25,8 @@ from pathlib import Path
 import jsonschema
 
 from pipeline.errors import StageError
-from pipeline.execution.mechanics import MechanicsResult, apply_to_plan, generate_mechanics
-from pipeline.execution.mechanics import summary as mechanics_summary
 from pipeline.llm.base import LLMConfigError, LLMError, LLMOutputError, LLMProvider, LLMUnavailableError
+from pipeline.planning.layout import Layout
 from pipeline.planning.graph import PlanningFailed, PlanningOutcome, StepCallback, plan_with_llm
 from pipeline.planning.placeholder_planner import plan_level, seed_from_prompt
 
@@ -43,6 +42,10 @@ class PlanningResult:
     summary: dict = field(default_factory=dict)  # planner facts for the job summary
     warnings: list[str] = field(default_factory=list)
     extra_files: list[Path] = field(default_factory=list)  # to serve with the bundle
+    # For the entity mechanics agent (agentic planner only).
+    rooms: list[dict] = field(default_factory=list)  # id, purpose, description, enemy_count
+    layout: Layout | None = None
+    exit_room: str | None = None
 
 
 def run_planning(
@@ -63,11 +66,7 @@ def run_planning(
             plan = plan_level(catalog, seed)
         except ValueError as exc:
             raise StageError("planning_failed", str(exc)) from exc
-        mechanics = MechanicsResult({}, "defaults")
-        apply_to_plan(plan, mechanics)
-        return PlanningResult(
-            _write_plan(plan, work_dir), planner, {"planner": planner, "mechanics": mechanics_summary(mechanics)},
-        )
+        return PlanningResult(write_plan(plan, work_dir), planner, {"planner": planner})
 
     try:
         if provider is None:
@@ -91,24 +90,15 @@ def run_planning(
         for r in outcome.topology.rooms
     ]
     exit_ = next((o for o in outcome.plan["objects"] if o["type"] == "ExitTrigger"), None)
-    mechanics = generate_mechanics(
-        prompt, rooms, sorted({o["type"] for o in outcome.plan["objects"]}), provider,
+    files = _write_reports(outcome, work_dir)
+    return PlanningResult(
+        write_plan(outcome.plan, work_dir), planner, _summary(planner, outcome, files), outcome.warnings, files,
+        rooms=rooms, layout=outcome.layout,
         exit_room=outcome.layout.room_at((exit_["col"], exit_["row"])) if exit_ else None,
     )
-    apply_to_plan(outcome.plan, mechanics, outcome.layout)
-
-    files = _write_reports(outcome, work_dir)
-    summary = _summary(planner, outcome, files)
-    summary["mechanics"] = mechanics_summary(mechanics)
-    for room in summary.get("rooms", []):
-        if room["id"] in mechanics.rooms:
-            room["mechanics"] = mechanics.rooms[room["id"]]
-    return PlanningResult(
-        _write_plan(outcome.plan, work_dir), planner, summary, outcome.warnings + mechanics.warnings, files,
-    )
 
 
-def _write_plan(plan: dict, work_dir: Path) -> Path:
+def write_plan(plan: dict, work_dir: Path) -> Path:
     schema = json.loads(_SCHEMA_PATH.read_text(encoding="utf-8"))
     try:
         jsonschema.validate(instance=plan, schema=schema)

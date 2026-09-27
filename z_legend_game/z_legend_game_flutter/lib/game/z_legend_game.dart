@@ -12,6 +12,7 @@ import 'package:flutter/widgets.dart' show KeyEventResult;
 import 'characters/player_component.dart';
 import 'characters/zombie_component.dart';
 import 'characters/zombie_config.dart';
+import 'hud/health_bar.dart';
 import 'iso/iso_math.dart';
 import 'level/level_loader.dart';
 import 'level/level_source.dart';
@@ -42,6 +43,12 @@ class ZLegendGame extends FlameGame
   List<ZombieComponent> get zombiesForTest => List.unmodifiable(_zombies);
 
   /// Exposed for tests only.
+  HealthBar? get healthBarForTest => _healthBar;
+
+  /// Exposed for tests only.
+  bool get isPlayerDeadForTest => _state == _GameState.dead;
+
+  /// Exposed for tests only.
   List<ObjectSprite> get objectSpritesForTest =>
       List.unmodifiable(_objectSprites);
 
@@ -55,6 +62,7 @@ class ZLegendGame extends FlameGame
   WalkabilityGrid? _walkability;
   final List<ObjectSprite> _objectSprites = [];
   OcclusionGuard? _occlusionGuard;
+  HealthBar? _healthBar;
 
   _GameState _state = _GameState.playing;
   bool _debugOverlay = false;
@@ -132,6 +140,11 @@ class ZLegendGame extends FlameGame
       }
       _pendingZombieSpawns.clear();
       _camera.follow(player);
+
+      // HUD: a new bar for the new player's health (also on restart).
+      _healthBar?.removeFromParent();
+      _healthBar = HealthBar(player.health);
+      _camera.viewport.add(_healthBar!);
 
       // Wire up attack callback: kill zombies within 1 tile when attack starts.
       player.onAttackStart = _killZombiesInAttackRange;
@@ -228,7 +241,7 @@ class ZLegendGame extends FlameGame
     _updateOcclusion();
     if (_state != _GameState.playing) return;
 
-    _checkZombieHitsPlayer();
+    _checkPlayerHealth();
     _checkPlayerAtExit();
   }
 
@@ -240,16 +253,12 @@ class ZLegendGame extends FlameGame
     _occlusionGuard?.update(rect, player.priority);
   }
 
-  void _checkZombieHitsPlayer() {
+  /// Zombies deal damage themselves ([ZombieComponent]); the player dies
+  /// at 0 health.
+  void _checkPlayerHealth() {
     final player = _player;
     if (player == null || player.isDead) return;
-    for (final z in _zombies) {
-      if (z.isDead) continue;
-      if (z.col == player.col && z.row == player.row) {
-        _playerDied();
-        return;
-      }
-    }
+    if (player.health.isDead) _playerDied();
   }
 
   void _checkPlayerAtExit() {

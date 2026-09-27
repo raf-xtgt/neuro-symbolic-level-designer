@@ -17,7 +17,7 @@ from pipeline.planning.dressing import (
 )
 from pipeline.planning.graph import plan_with_llm
 from pipeline.planning.layout import GAP, MARGIN, MAX_MAP, MIN_MAP, LayoutError, RoomRect, build_layout
-from pipeline.planning.models import RoomTopologyGraph, validate_with_catalog
+from pipeline.planning.models import RoomTopologyGraph, StyleWeight, validate_with_catalog
 from pipeline.planning.pathing import reachable
 from pipeline.planning.spawner import MIN_SPAWN_DISTANCE, chebyshev, place_entities
 from pipeline.planning.validator import CHECKS, validate_plan
@@ -563,3 +563,66 @@ def test_hedge_encloses_a_diagonal_front_edge():
     blocked = {(r, c) for c, r in hedge}
     seen = reachable(width, height, blocked, (10, 10))
     assert {(c, r) for r, c in seen} == playable
+
+
+# ---------------------------------------------------------------------------
+# Small or unusual catalogs (uploads): no trees, one floor family
+# ---------------------------------------------------------------------------
+
+def _catalog(tiles: list[tuple[str, str, bool, list[str], int]]) -> dict:
+    """tiles: (category, material, walkable, tags, count)."""
+    out = []
+    for category, material, walkable, tags, count in tiles:
+        for _ in range(count):
+            out.append({
+                "id": len(out), "name": f"{tags[0]}_{len(out)}", "source": "sheet.png", "category": category,
+                "walkable": walkable, "material": material, "rect": {"x": 0, "y": 0, "w": 64, "h": 64},
+                "anchor": {"x": 32, "y": 48}, "tags": tags,
+            })
+    return {"tile_size": {"width": 64, "height": 32}, "tiles": out, "entities": FULL["entities"]}
+
+
+FARM = _catalog([
+    ("floor", "grass", True, ["grass"], 3), ("floor", "dirt", True, ["dirt"], 2),
+    ("obstacle", "wood", False, ["crate", "prop"], 2), ("obstacle", "plant", False, ["hay_bale", "prop"], 2),
+    ("obstacle", "cloth", False, ["sack", "prop"], 1), ("obstacle", "wood", False, ["barn", "structure_part"], 2),
+])
+LIBRARY = _catalog([
+    ("floor", "wood", True, ["wood"], 3),
+    ("obstacle", "wood", False, ["bookcase", "prop"], 3), ("obstacle", "wood", False, ["table", "prop"], 2),
+    ("decoration", "paper", True, ["book", "prop"], 2), ("obstacle", "stone", False, ["wall", "structure_part"], 2),
+])
+SMALL_CATALOGS = {
+    "farm": (FARM, [{"tile_group": "floor.grass", "weight": 0.7}, {"tile_group": "floor.dirt", "weight": 0.3},
+                    {"tile_group": "obstacle.crate", "weight": 0.3}, {"tile_group": "obstacle.hay_bale", "weight": 0.3}]),
+    "library": (LIBRARY, [{"tile_group": "floor.wood", "weight": 1.0}, {"tile_group": "obstacle.bookcase", "weight": 0.4},
+                          {"tile_group": "obstacle.table", "weight": 0.2}, {"tile_group": "decoration.book", "weight": 0.3}]),
+}
+
+
+@pytest.mark.parametrize("name", sorted(SMALL_CATALOGS))
+def test_small_catalogs_make_enclosed_levels(name):
+    catalog, style = SMALL_CATALOGS[name]
+    digest = build_digest(catalog)
+    assert not any(g.family.startswith("tree_") for g in digest.groups)
+    parts = {t["id"] for t in catalog["tiles"] if "structure_part" in t["tags"]}
+    walkable = {t["id"]: t["walkable"] for t in catalog["tiles"]}
+    floors = {i for g in digest.floors for i in g.tile_ids}
+    for topo in ("three_line", "four_compass"):
+        base = TOPOLOGIES[topo]
+        graph = base.model_copy(update={"style_distribution": [StyleWeight(**s) for s in style]})
+        for seed in range(4):
+            outcome = _plan(graph, seed, catalog=catalog)
+            assert outcome.report["passed"], outcome.report
+            layout, plan = outcome.layout, outcome.plan
+            ground, objects = plan["layers"][0]["grid"], plan["layers"][1]["grid"]
+            assert not parts & {v for row in objects for v in row}, "a structure_part was placed"
+            playable = layout.playable_cells
+            for cell in _hedge(playable, layout.width, layout.height, _clearance_depth(playable)):
+                tile = objects[cell[1]][cell[0]]
+                assert tile and not walkable[tile], (name, seed, cell)
+            blocked = {(r, c) for r, row in enumerate(objects) for c, v in enumerate(row) if v and not walkable[v]}
+            spawn = next(o for o in plan["objects"] if o["type"] == "PlayerSpawn")
+            seen = reachable(layout.width, layout.height, blocked, (spawn["row"], spawn["col"]))
+            assert {(c, r) for r, c in seen} <= playable
+            assert all(ground[r][c] in floors for c, r in layout.corridor_cells)

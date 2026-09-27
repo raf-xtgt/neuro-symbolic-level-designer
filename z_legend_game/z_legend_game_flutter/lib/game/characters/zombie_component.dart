@@ -11,6 +11,9 @@ import 'zombie_config.dart';
 /// along the shortest path on the [WalkabilityGrid] (around obstacles, never
 /// into them); otherwise idles, patrols its room, or guards the exit
 /// ([ZombieConfig.behavior], from the level's Tiled object properties).
+/// Next to the player (or on its cell) it stops, faces the player and
+/// attacks: 1 damage every [attackCooldown] seconds. It never steps onto the
+/// player's cell.
 class ZombieComponent extends CharacterComponent {
   ZombieComponent({
     required super.startCol,
@@ -39,6 +42,10 @@ class ZombieComponent extends CharacterComponent {
   /// Speed: one tile per [ZombieConfig.stepInterval] seconds.
   double _stepTimer = 0;
 
+  /// Seconds between two attacks.
+  static const double attackCooldown = 1.0;
+  double _cooldown = 0;
+
   @override
   Future<void> onLoad() async {
     await super.onLoad();
@@ -60,6 +67,25 @@ class ZombieComponent extends CharacterComponent {
   void update(double dt) {
     super.update(dt);
     if (isDead) return;
+    if (_cooldown > 0) _cooldown -= dt;
+
+    final dcolPlayer = player.col - col;
+    final drowPlayer = player.row - row;
+    if (!player.isDead && dcolPlayer.abs() <= 1 && drowPlayer.abs() <= 1) {
+      _stepTimer = 0;
+      setFacing(
+        IsoDirection.fromDelta(
+          (dcolPlayer - drowPlayer).toDouble(),
+          (dcolPlayer + drowPlayer).toDouble(),
+        ),
+      );
+      if (_cooldown <= 0) {
+        _cooldown = attackCooldown;
+        replayAnimation(CharAnim.attack);
+        player.takeHit();
+      }
+      return;
+    }
 
     // The next cell along a BFS path, recomputed every update (the map is
     // small), so the zombie follows the player and goes around obstacles.
@@ -70,6 +96,10 @@ class ZombieComponent extends CharacterComponent {
       return;
     }
     final (nextCol, nextRow) = next;
+    if (next == (player.col, player.row)) {
+      _stepTimer = 0;
+      return;
+    }
     final dcol = nextCol - col;
     final drow = nextRow - row;
 

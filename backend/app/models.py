@@ -47,8 +47,9 @@ class JobError(BaseModel):
 
 
 class PlanningStep(BaseModel):
+    """A planning graph node run, or an execution step (``execution_steps``)."""
     node: str
-    status: Literal["done", "failed"]
+    status: Literal["running", "done", "failed"]
     attempt: int
     message: str
 
@@ -73,3 +74,5 @@ class JobStatus(BaseModel):
     planner: str | None = None
     ingestion_steps: list[IngestionStep] = []
     planning_steps: list[PlanningStep] = []
+    execution_steps: list[PlanningStep] = []
+    source: dict[str, Any] = {}  # {"asset_pack": id} or {"spritesheets": [names]}

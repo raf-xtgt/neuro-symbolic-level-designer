@@ -212,6 +212,18 @@ abstract class CharacterComponent extends PositionComponent
   }
 
   /// Moves the character to a new grid position.
+  /// Plays [anim] from its first frame, even if it is already playing.
+  void replayAnimation(CharAnim anim) {
+    if (_dead) return;
+    _playAnim(anim);
+  }
+
+  /// Opacity of the character sprite (hit flash).
+  set spriteOpacity(double value) {
+    final sprite = _sprite;
+    if (sprite != null && sprite.opacity != value) sprite.opacity = value;
+  }
+
   void setGridPosition(int col, int row) {
     _col = col;
     _row = row;

@@ -23,6 +23,7 @@ from pathlib import Path
 
 from pipeline.errors import StageError
 from pipeline.execution.compile import run_compile
+from pipeline.execution.mechanics import run_mechanics
 from pipeline.execution.verification import job_block, verify_bundle
 from pipeline.ingestion.pipeline1 import PIPELINE1_VERSION
 from pipeline.ingestion.run import IngestionRequest, LegacyFile, run_ingestion
@@ -175,6 +176,7 @@ class JobManager:
             "source": request.source,
             "ingestion_steps": [],
             "planning_steps": [],
+            "execution_steps": [],
         }
         (job_dir / "job.json").write_text(json.dumps(job, indent=2), encoding="utf-8")
         self._executor.submit(self._run, job_id, request.prompt, ingestion, request.planner, request.source)
@@ -191,6 +193,14 @@ class JobManager:
         stage = STAGES[0]
         started: dict[str, float] = {}
         timings: dict[str, float] = {}
+        execution_steps: list[dict] = []
+
+        def step(node: str, status: str, message: str = "") -> None:
+            """An execution sub-step; a result replaces the node's ``running`` step."""
+            if execution_steps and execution_steps[-1]["node"] == node and execution_steps[-1]["status"] == "running":
+                execution_steps.pop()
+            execution_steps.append({"node": node, "status": status, "attempt": 1, "message": message})
+            self._update(job_id, execution_steps=list(execution_steps))
 
         def start(name: str) -> None:
             nonlocal stage
@@ -227,15 +237,25 @@ class JobManager:
             finish("planning")
 
             start("executing")
+            step("mechanics_agent", "running")
+            mechanics = run_mechanics(planning, prompt, self.llm_provider)
+            if mechanics.warnings:
+                self._update(job_id, warnings=self.get(job_id)["warnings"] + mechanics.warnings)
+            step("mechanics_agent", "done", _mechanics_message(mechanics.rooms, mechanics.source))
+
+            step("codegen", "running")
             try:
-                run_compile(
+                compiled = run_compile(
                     str(planning.plan_path), str(ingested.catalog_path), str(bundle), source_root=ingested.source_root,
                     prompt=prompt,
                 )
-            except StageError:
+            except StageError as exc:
+                step("codegen", "failed", exc.message)
                 raise
             except Exception as exc:
+                step("codegen", "failed", str(exc))
                 raise StageError("execution_failed", str(exc)) from exc
+            step("codegen", "done", f"level.tmj, {len(compiled['tilesets'])} tilesets, level_loader.dart")
             for path in planning.extra_files:
                 shutil.copyfile(path, bundle / path.name)
 
@@ -243,6 +263,7 @@ class JobManager:
             summary.update(planning.summary)
             if ingested.summary is not None:
                 summary["ingestion"] = ingested.summary
+            step("verification", "running")
             verify_start = time.monotonic()
             report = verify_bundle(
                 bundle,
@@ -258,6 +279,12 @@ class JobManager:
             )
             summary["verification"] = job_block(report)
             summary["verification"]["seconds"] = round(time.monotonic() - verify_start, 2)
+            block = summary["verification"]
+            step(
+                "verification", "done",
+                f"{block['checks_passed']} of {block['checks_total']} checks passed, "
+                f"dart analyze {block['dart_analyze']['status']}",
+            )
             finish("executing")
             summary["warnings"] = self.get(job_id)["warnings"]
             self._update(job_id, status="done", summary=summary)
@@ -275,6 +302,14 @@ class JobManager:
                 error = {"code": "internal_error", "message": str(exc)}
             stages[stage] = "failed"
             self._update(job_id, status="failed", stages=stages, error=error, summary=summary)
+
+
+def _mechanics_message(rooms: dict[str, dict], source: str) -> str:
+    if not rooms:
+        return "no enemies" if source == "llm" else "default enemy behavior"
+    behaviors = Counter(v["behavior"] for v in rooms.values())
+    text = ", ".join(f"{b} {n}" for b, n in sorted(behaviors.items()))
+    return f"{len(rooms)} rooms: {text}" + ("" if source == "llm" else " (defaults)")
 
 
 def _playability(summary: dict) -> dict:

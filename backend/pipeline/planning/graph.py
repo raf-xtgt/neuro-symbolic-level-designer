@@ -162,11 +162,31 @@ class Pipeline2:
         self.graph = self._build()
 
     def _step(self, node: str, status: str, attempt: int, message: str) -> dict:
+        """Records a finished node run; it replaces the node's ``running`` step."""
         step = {"node": node, "status": status, "attempt": attempt, "message": message}
+        if self._steps and self._steps[-1]["node"] == node and self._steps[-1]["status"] == "running":
+            self._steps.pop()
         self._steps.append(step)
+        self._emit()
+        return step
+
+    def _emit(self) -> None:
         if self.on_step is not None:
             self.on_step(list(self._steps))
-        return step
+
+    def _tracked(self, name: str, node):
+        """Wraps a node: a ``running`` step while it runs (for the progress UI)."""
+        def run(state: PlanningState) -> dict:
+            attempt = 1 + sum(s["node"] == name for s in self._steps)
+            self._steps.append({"node": name, "status": "running", "attempt": attempt, "message": ""})
+            self._emit()
+            try:
+                return node(state)
+            finally:
+                last = self._steps[-1] if self._steps else None
+                if last and last["node"] == name and last["status"] == "running":
+                    self._steps.pop()  # the node raised before recording its result
+        return run
 
     # -- nodes -----------------------------------------------------------
 
@@ -294,7 +314,7 @@ class Pipeline2:
     def _build(self):
         graph = StateGraph(PlanningState)
         for name in ("topology_agent", "layout_builder", "stacking", "spawner", "dressing", "validator"):
-            graph.add_node(name, getattr(self, name))
+            graph.add_node(name, self._tracked(name, getattr(self, name)))
         graph.add_edge(START, "topology_agent")
         route = lambda state: state["next"]  # noqa: E731
         graph.add_conditional_edges("topology_agent", route, ["topology_agent", "layout_builder", END])

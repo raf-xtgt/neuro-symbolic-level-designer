@@ -34,7 +34,9 @@ so cliffs, water and fences (``autotile_required`` / ``fence``) are not used.
     (``FRONT_DECORATION_DENSITY``). It is unreachable behind the hedge.
   - Back and side zones: dense trees and rock pillars.
   Trees favor the style: when the style names tree groups, at least
-  ``STYLE_TREE_SHARE`` of the trees come from them. Without blocking tiles in
+  ``STYLE_TREE_SHARE`` of the trees come from them. A catalog without tree,
+  pillar or low-blocker families (a farm or an indoor set) uses any blocking
+  obstacle group (else blocking decoration group) for all of these. Without blocking tiles in
   the catalog the wilderness stays floor and the map edge is the boundary
   (with a warning).
 * Camera clearance (occlusion guard, 4.1.2): a sprite H px tall covers the
@@ -380,14 +382,19 @@ class _WildPicker:
     def __init__(self, topology: RoomTopologyGraph, digest: CatalogDigest, rng: random.Random):
         self.rng = rng
         style = topology.style_map()
-        blocking = [g for g in digest.of_category("obstacle") if g.blocks]
+        # Structures are never wilderness (their own category; slices are
+        # not in the digest). Catalogs without blocking obstacles (an indoor
+        # set) fall back to blocking decorations.
+        blocking = [g for g in digest.of_category("obstacle") if g.blocks] or [
+            g for g in digest.of_category("decoration") if g.blocks
+        ]
 
         def weighted(found: list[TileGroup]) -> Weighted:
             return [(g, style.get(g.id, 0.0) + WILDERNESS_BASE_WEIGHT) for g in found]
 
         trees = [g for g in blocking if g.family.startswith(TREE_PREFIX)]
         self.pillars = weighted([g for g in blocking if g.family in PILLAR_FAMILIES])
-        if not trees and not self.pillars:
+        if not trees and not self.pillars:  # for example hay bales, crates, bookcases
             trees = blocking
         self.trees = weighted(trees)
         self.style_trees = [(g, style[g.id]) for g in trees if style.get(g.id, 0.0) > 0]

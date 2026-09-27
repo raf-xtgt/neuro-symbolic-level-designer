@@ -37,6 +37,26 @@ const Map<String, String> _stageLabels = {
   'executing': '3. Execution',
 };
 
+/// While a step runs: friendly text per step (ingestion, planning, execution).
+const Map<String, String> _runningLabels = {
+  'preprocess': 'Slicing the spritesheet...',
+  'boundary_agent': 'AI-powered tile boundary analysis is running...',
+  'classification_agent': 'AI-powered tile classification is running...',
+  'collision_agent': 'AI-powered collision analysis is running...',
+  'entity_agent': 'AI-powered entity detection is running...',
+  'harmonizer': 'Building the asset catalog...',
+  'quality_gate': 'Checking for floor tiles...',
+  'topology_agent': 'AI-powered level layout planning is running...',
+  'layout_builder': 'Placing rooms and corridors...',
+  'stacking': 'Setting elevation...',
+  'spawner': 'Placing the player, zombies, and exit...',
+  'dressing': 'Dressing the level...',
+  'validator': 'Validating playability...',
+  'mechanics_agent': 'AI-powered enemy behavior design is running...',
+  'codegen': 'Generating Flame code...',
+  'verification': 'Verifying the bundle...',
+};
+
 /// Pipeline 1 steps for uploaded sheets (`ingestion_steps`).
 const Map<String, String> _ingestionLabels = {
   'preprocess': 'Pre-processor',
@@ -58,6 +78,13 @@ const Map<String, String> _nodeLabels = {
   'validator': 'Validator',
 };
 
+/// Pipeline 3 steps (`execution_steps`).
+const Map<String, String> _executionLabels = {
+  'mechanics_agent': 'Enemy behavior agent (AI)',
+  'codegen': 'Code generator',
+  'verification': 'Verification',
+};
+
 /// Friendly text for a failed job, by error code.
 String _errorText(JobStatus status) {
   final message = status.errorMessage ?? 'Generation failed.';
@@ -67,14 +94,13 @@ String _errorText(JobStatus status) {
           'diamonds, or 128 x 64 / 32 x 16 ones that can be scaled). A level '
           'needs a walkable floor. ($message)',
     'llm_unavailable' =>
-      'The AI planner could not reach the model. Try again, or choose the '
-          'Placeholder planner. ($message)',
+      'The AI planner could not reach the model. Try again. ($message)',
     'llm_output_invalid' =>
       'The AI planner returned an invalid room graph. Try again or rephrase '
           'the prompt. ($message)',
     'llm_config' =>
-      'The AI planner is not configured on the server (backend .env). Choose '
-          'the Placeholder planner. ($message)',
+      'The AI planner is not configured on the server (backend .env). '
+          '($message)',
     'plan_validation_failed' =>
       'No valid level after all planning attempts. Try a simpler prompt.',
     _ => message,
@@ -123,10 +149,9 @@ class _LevelDesignerScreenState extends State<LevelDesignerScreen> {
   LevelApi? _api;
 
   // Inputs.
-  bool _useUpload = false;
-  Planner _planner = Planner.agentic;
+  // Loaded once to detect an offline backend; the level always uses the
+  // uploads, or the default grassland pack without uploads.
   List<AssetPack>? _packs;
-  String? _packId;
   final Map<_FileInput, List<LevelFile>> _files = {
     for (final input in _FileInput.values) input: [],
   };
@@ -169,10 +194,7 @@ class _LevelDesignerScreenState extends State<LevelDesignerScreen> {
     try {
       final packs = await _api!.listAssetPacks();
       if (!mounted) return;
-      setState(() {
-        _packs = packs;
-        _packId ??= packs.isEmpty ? null : packs.first.id;
-      });
+      setState(() => _packs = packs);
     } on ApiUnavailableException {
       if (mounted) setState(() => _offline = true);
     } on ApiException catch (e) {
@@ -197,15 +219,7 @@ class _LevelDesignerScreenState extends State<LevelDesignerScreen> {
     if (prompt.length > _maxPromptChars) {
       add('prompt', 'Use at most $_maxPromptChars characters.');
     }
-    if (!_useUpload && _packId == null) {
-      add('asset_pack', 'Choose an asset pack.');
-    }
-    if (_useUpload && _files[_FileInput.spritesheets]!.isEmpty) {
-      add('spritesheets', 'Choose 1 to 10 PNG spritesheets.');
-    }
-
     for (final input in _FileInput.values) {
-      if (input == _FileInput.spritesheets && !_useUpload) continue;
       final files = _files[input]!;
       if (files.length > input.maxCount) {
         add(input.field, 'At most ${input.maxCount} files are allowed.');
@@ -255,13 +269,14 @@ class _LevelDesignerScreenState extends State<LevelDesignerScreen> {
       _preview = null;
       _contactSheet = null;
     });
+    final sheets = _files[_FileInput.spritesheets]!;
     try {
       final job = await _api!.createLevel(
         LevelRequest(
           prompt: _prompt.text.trim(),
-          planner: _planner,
-          assetPack: _useUpload ? null : _packId,
-          spritesheets: _useUpload ? _files[_FileInput.spritesheets]! : [],
+          planner: Planner.agentic,
+          assetPack: sheets.isEmpty ? defaultAssetPack : null,
+          spritesheets: sheets,
           tilesets: _files[_FileInput.tilesets]!,
           maps: _files[_FileInput.maps]!,
         ),
@@ -423,38 +438,9 @@ class _LevelDesignerScreenState extends State<LevelDesignerScreen> {
           ),
           _ErrorList(_errors['prompt']),
           const SizedBox(height: 16),
-          const _Heading('Spritesheet source'),
-          RadioGroup<bool>(
-            groupValue: _useUpload,
-            onChanged: (v) => setState(() => _useUpload = v ?? false),
-            child: const Column(
-              children: [
-                RadioListTile(
-                  value: false,
-                  title: Text('Built-in asset pack'),
-                  contentPadding: EdgeInsets.zero,
-                ),
-                RadioListTile(
-                  value: true,
-                  title: Text('Upload spritesheets'),
-                  contentPadding: EdgeInsets.zero,
-                ),
-              ],
-            ),
-          ),
-          if (_useUpload) _uploadInput() else _packInput(),
-          const SizedBox(height: 16),
-          const _Heading('Planner'),
-          DropdownButtonFormField<Planner>(
-            key: const Key('planner'),
-            initialValue: _planner,
-            decoration: const InputDecoration(border: OutlineInputBorder()),
-            items: [
-              for (final p in Planner.values)
-                DropdownMenuItem(value: p, child: Text(p.label)),
-            ],
-            onChanged: (p) => setState(() => _planner = p ?? Planner.agentic),
-          ),
+          const _Heading('Spritesheets'),
+          _uploadInput(),
+          _ErrorList(_errors['asset_pack']),
           _ErrorList(_errors['planner']),
           const SizedBox(height: 16),
           const _Heading('Optional'),
@@ -482,56 +468,24 @@ class _LevelDesignerScreenState extends State<LevelDesignerScreen> {
     );
   }
 
-  Widget _packInput() {
-    final packs = _packs;
-    if (packs == null) {
-      return _offline
-          ? const Text('Asset packs are not loaded.')
-          : const LinearProgressIndicator();
-    }
-    AssetPack? selected;
-    for (final p in packs) {
-      if (p.id == _packId) selected = p;
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        DropdownButtonFormField<String>(
-          key: const Key('asset_pack'),
-          initialValue: _packId,
-          decoration: const InputDecoration(border: OutlineInputBorder()),
-          items: [
-            for (final p in packs)
-              DropdownMenuItem(value: p.id, child: Text(p.name)),
-          ],
-          onChanged: (id) => setState(() => _packId = id),
-        ),
-        if (selected != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: Text(
-              selected.description,
-              style: const TextStyle(color: Colors.white70),
-            ),
-          ),
-        _ErrorList(_errors['asset_pack']),
-      ],
-    );
-  }
-
   Widget _uploadInput() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const Text(
-          'Isometric spritesheets with a 2:1 base diamond (64 x 32, or 128 x '
-          '64 / 32 x 16, scaled). AI agents slice and classify the tiles; the '
-          'first run of a sheet takes about a minute, later runs use the '
-          'cache.',
-          style: TextStyle(color: Colors.white70),
+          'Upload your isometric spritesheets (PNG). If you do not upload '
+          'any, the default grassland spritesheet is used.',
+          key: Key('upload_hint'),
+        ),
+        const SizedBox(height: 4),
+        const Text(
+          'A 2:1 base diamond (64 x 32, or 128 x 64 / 32 x 16, scaled). AI '
+          'agents slice and classify the tiles; the first run of a sheet '
+          'takes about a minute, later runs use the cache.',
+          style: TextStyle(color: Colors.white70, fontSize: 12),
         ),
         const SizedBox(height: 8),
-        _fileInput(_FileInput.spritesheets, 'Spritesheets (PNG, 1 to 10)'),
+        _fileInput(_FileInput.spritesheets, 'Spritesheets (PNG, up to 10)'),
       ],
     );
   }
@@ -584,7 +538,11 @@ class _LevelDesignerScreenState extends State<LevelDesignerScreen> {
             if (stage == 'ingesting' && status != null)
               for (final step in status.ingestionSteps) _IngestionStepRow(step),
             if (stage == 'planning' && status != null)
-              for (final step in status.planningSteps) _PlanningStepRow(step),
+              for (final step in status.planningSteps)
+                _PlanningStepRow(step, _nodeLabels),
+            if (stage == 'executing' && status != null)
+              for (final step in status.executionSteps)
+                _PlanningStepRow(step, _executionLabels, showAttempt: false),
           ],
           if (status != null && status.isFailed) ...[
             const SizedBox(height: 12),
@@ -650,6 +608,8 @@ class _LevelDesignerScreenState extends State<LevelDesignerScreen> {
         const SizedBox(height: 16),
       ],
       if (summary != null) ...[
+        if (status.sourceLabel case final source?)
+          _SummaryLine('Spritesheets', source),
         _SummaryLine(
           'Map size',
           '${summary.mapWidth} x ${summary.mapHeight} tiles',
@@ -870,7 +830,10 @@ class _IngestionStepRow extends StatelessWidget {
     };
     final progress = step.total == null || step.total == 0
         ? ''
-        : ' [${step.done}/${step.total}]';
+        : ' (${step.done} of ${step.total} batches)';
+    final text = step.status == 'running'
+        ? '${_runningLabels[step.node] ?? label}$progress'
+        : '$label$progress: ${step.message}';
     return Padding(
       padding: const EdgeInsets.only(left: 36, top: 2, bottom: 2),
       child: Row(
@@ -880,7 +843,7 @@ class _IngestionStepRow extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              '$label$progress: ${step.message}',
+              text,
               style: const TextStyle(fontSize: 13, color: Colors.white70),
             ),
           ),
@@ -890,28 +853,45 @@ class _IngestionStepRow extends StatelessWidget {
   }
 }
 
+/// A planning node or execution step: the friendly running text while it
+/// runs, then its label and result message.
 class _PlanningStepRow extends StatelessWidget {
-  const _PlanningStepRow(this.step);
+  const _PlanningStepRow(this.step, this.labels, {this.showAttempt = true});
 
   final PlanningStep step;
+  final Map<String, String> labels;
+  final bool showAttempt;
 
   @override
   Widget build(BuildContext context) {
-    final label = _nodeLabels[step.node] ?? step.node;
+    final label = labels[step.node] ?? step.node;
+    final attempt = showAttempt ? ' (attempt ${step.attempt})' : '';
     return Padding(
       padding: const EdgeInsets.only(left: 36, top: 2, bottom: 2),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            step.failed ? Icons.error_outline : Icons.check,
-            size: 16,
-            color: step.failed ? Colors.orangeAccent : Colors.green,
+          SizedBox(
+            width: 16,
+            child: Center(
+              child: step.running
+                  ? const SizedBox.square(
+                      dimension: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Icon(
+                      step.failed ? Icons.error_outline : Icons.check,
+                      size: 16,
+                      color: step.failed ? Colors.orangeAccent : Colors.green,
+                    ),
+            ),
           ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              '$label (attempt ${step.attempt}): ${step.message}',
+              step.running
+                  ? _runningLabels[step.node] ?? label
+                  : '$label$attempt: ${step.message}',
               style: const TextStyle(fontSize: 13, color: Colors.white70),
             ),
           ),

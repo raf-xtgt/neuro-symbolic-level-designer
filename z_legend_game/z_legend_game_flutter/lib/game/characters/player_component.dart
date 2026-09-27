@@ -3,6 +3,7 @@ import 'package:flame/components.dart';
 import 'package:flutter/services.dart';
 
 import 'character_component.dart';
+import 'player_health.dart';
 
 /// The player character. Responds to WASD / arrow key input.
 ///
@@ -18,6 +19,12 @@ class PlayerComponent extends CharacterComponent with KeyboardHandler {
          imageBaseName: 'characters/player',
          jsonBaseName: 'assets/images/characters/player',
        );
+
+  /// Health points and hit invulnerability.
+  final PlayerHealth health = PlayerHealth();
+
+  /// A zombie hit: true if it dealt damage (not invulnerable or dead).
+  bool takeHit([int damage = 1]) => !isDead && health.hit(damage);
 
   /// Movement speed: one tile per [_stepInterval] seconds.
   static const double _stepInterval = 0.18;
@@ -85,6 +92,8 @@ class PlayerComponent extends CharacterComponent with KeyboardHandler {
   @override
   void update(double dt) {
     super.update(dt);
+    health.update(dt);
+    spriteOpacity = isDead ? 1 : health.opacity;
     if (isDead || _attacking) return;
 
     final (dx, dy) = _inputDelta();

@@ -64,7 +64,9 @@ def test_happy_path_steps_and_usage():
     assert [n for n, _, _ in _nodes(outcome)] == [
         "topology_agent", "layout_builder", "stacking", "spawner", "dressing", "validator",
     ]
-    assert [len(s) for s in seen] == [1, 2, 3, 4, 5, 6]  # one callback per node
+    # Two callbacks per node: running (for the progress UI), then its result.
+    assert [len(s) for s in seen] == [1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6]
+    assert [s[-1]["status"] for s in seen] == ["running", "done"] * 6
     assert outcome.steps[0]["message"] == "3 rooms, 7 enemies"
     assert outcome.usage["calls"] == 1
 
@@ -163,13 +165,8 @@ def test_run_planning_placeholder_unchanged(tmp_path):
     from pipeline.planning.placeholder_planner import plan_level, seed_from_prompt
 
     result = run_planning("a quiet meadow", FULL_CATALOG, tmp_path, planner="placeholder")
-    assert result.summary == {"planner": "placeholder", "mechanics": {"source": "defaults", "rooms": {}, "llm_usage": {}}}
-    # Unchanged except for the default enemy properties.
-    expected = plan_level(FULL, seed_from_prompt("a quiet meadow"))
-    for obj in expected["objects"]:
-        if obj["type"] == "Zombie":
-            obj["properties"] = {"chase_range": 5, "step_interval_ms": 350, "behavior": "idle_until_near"}
-    assert json.loads(result.plan_path.read_text()) == expected
+    assert result.summary == {"planner": "placeholder"}
+    assert json.loads(result.plan_path.read_text()) == plan_level(FULL, seed_from_prompt("a quiet meadow"))
 
 
 def test_run_planning_failure_has_details(tmp_path, monkeypatch):
